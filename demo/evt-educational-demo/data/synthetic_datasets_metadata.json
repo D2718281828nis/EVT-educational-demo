@@ -1,0 +1,17 @@
+{
+  "seed": 42,
+  "fractal_noise": {
+    "hurst_exponent": 0.75,
+    "event_onset": 1036,
+    "event_duration": 25,
+    "event_magnitude_in_sigma": 8.0
+  },
+  "kuramoto": {
+    "n_channels": 12,
+    "source_channel": 0,
+    "coupling": 2.0,
+    "time_step": 0.05,
+    "initial_coherence": 0.24355109398487135,
+    "final_coherence": 0.9985330532035396
+  }
+}
