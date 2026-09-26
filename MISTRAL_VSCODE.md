@@ -20,18 +20,39 @@ GitHub Actions.
 
 ## Вариант 1: локальный запуск из VS Code
 
-### 1. Подготовить окружение
+### 1. Использовать существующий VENV
 
-Из корня `EVT-educational-demo`:
+Если VENV уже создан, повторно выполнять `python -m venv` не нужно. Откройте
+корень `EVT-educational-demo` в VS Code, выберите команду **Python: Select
+Interpreter** и укажите Python именно из своего VENV:
+
+- Linux/macOS: `<путь-к-VENV>/bin/python`;
+- Windows: `<путь-к-VENV>\Scripts\python.exe`.
+
+Затем активируйте тот же VENV во встроенном терминале. Если он находится в
+`.venv` внутри проекта:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate              # Windows PowerShell: .venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
+source .venv/bin/activate
 ```
 
-Установите `Graph-EVT-agent` способом, указанным в его README. Если репозиторий
-оформлен как устанавливаемый Python-пакет, обычно подходит:
+Для Windows PowerShell:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+Убедитесь, что команды `python` и `pip` относятся к выбранному VENV:
+
+```bash
+python -c "import sys; print(sys.executable)"
+python -m pip --version
+```
+
+Путь в обоих результатах должен вести в ваш VENV. Далее устанавливайте
+`Graph-EVT-agent` **в этот активированный VENV** способом, указанным в README
+библиотеки. Если репозиторий оформлен как устанавливаемый Python-пакет, обычно
+подходит:
 
 ```bash
 python -m pip install "git+https://github.com/D2718281828nis/Graph-EVT-agent.git"
@@ -47,7 +68,9 @@ python -m pip install -r ../Graph-EVT-agent/requirements.txt
 
 ### 2. Передать ключ локально
 
-Создайте `.env` (он игнорируется Git):
+VENV изолирует Python и установленные пакеты, но сам по себе не предоставляет
+`MISTRAL_API_KEY`. Создайте в корне проекта отдельный файл `.env` (он
+игнорируется Git):
 
 ```dotenv
 MISTRAL_API_KEY=ваш_локальный_ключ
@@ -79,17 +102,29 @@ MISTRAL_API_KEY=ваш_локальный_ключ
 ```
 
 Замените `path/to/your_entrypoint.py` на файл, который создаёт/запускает агента
-согласно API `Graph-EVT-agent`. Выберите интерпретатор
-`${workspaceFolder}/.venv/bin/python` командой **Python: Select Interpreter** и
-запустите конфигурацию клавишей **F5**.
+согласно API `Graph-EVT-agent`. Отладчик использует ранее выбранный
+интерпретатор VENV, а `envFile` передаёт ему `MISTRAL_API_KEY`. Запустите
+конфигурацию клавишей **F5**.
 
-Для запуска без отладчика:
+Для запуска без отладчика в Linux/macOS сначала активируйте VENV, а затем
+экспортируйте переменные из `.env`:
 
 ```bash
 set -a
 source .env
 set +a
 python path/to/your_entrypoint.py
+```
+
+В PowerShell файл `.env` автоматически не загружается. Можно безопасно
+прочитать конкретную переменную без вывода её значения:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+$env:MISTRAL_API_KEY = (Get-Content .env |
+  Where-Object { $_ -match '^MISTRAL_API_KEY=' } |
+  Select-Object -First 1) -replace '^MISTRAL_API_KEY=', ''
+python path\to\your_entrypoint.py
 ```
 
 Код должен получать ключ из окружения, например:
