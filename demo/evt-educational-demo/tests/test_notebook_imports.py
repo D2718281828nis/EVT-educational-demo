@@ -44,7 +44,10 @@ def test_llm_notebook_uses_graph_evt_agent_team_without_embedding_a_key():
     assert "MistralClient" in source
     assert 'os.getenv(\\"MISTRAL_API_KEY\\")' in source
     assert "Mistral API key (input hidden)" in source
-    assert "MistralClient(api_key=api_key)" in source
+    assert 'model=\\"mistral-small-latest\\"' in source
+    assert "max_retries=0" in source
+    assert "MistralAPIError" in source
+    assert "Mistral rate limit (HTTP 429)" in source
     assert "mistral_client.complete" in source
     assert source.index("mistral_client.complete") < source.index(
         "pipeline = GraphEVTPipeline"
