@@ -27,7 +27,18 @@ python -m pip install --no-deps -e demo/evt-educational-demo
 используют `EVTConfig`, `GraphConfig`, `InputConfig` и `GraphEVTPipeline`. В
 ноутбуке 04 дополнительно показан настоящий LLM-режим `EVTAgentTeam` с
 `MistralClient`: для его включения задайте `MISTRAL_API_KEY` только через
-окружение. Без ключа LLM-вызов явно пропускается, а численный анализ доступен.
+окружение. Локально скопируйте `.env.example` в `.env`, внесите новый ключ в
+`.env` (этот файл исключён из Git), затем из каталога модуля запустите:
+
+```bash
+set -a
+source .env
+set +a
+jupyter lab
+```
+
+Перезапустите kernel ноутбука после изменения окружения. Без ключа LLM-вызов
+явно пропускается, а численный анализ доступен.
 
 ## Маршрут по ноутбукам
 
