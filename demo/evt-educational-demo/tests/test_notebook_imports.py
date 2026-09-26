@@ -1,39 +1,35 @@
-"""Regression tests for VS Code/Jupyter import bootstrapping."""
+"""Structural checks that do not spend tokens or contact an LLM provider."""
 
 import json
 from pathlib import Path
-import subprocess
-import sys
 
 
-def test_every_notebook_first_code_cell_imports_evt_demo():
+def test_renewed_notebooks_share_dataset_and_external_agent_library():
     demo_root = Path(__file__).resolve().parents[1]
-    repository_root = demo_root.parents[1]
     notebooks = sorted((demo_root / "notebooks").glob("*.ipynb"))
-    assert len(notebooks) == 6
+
+    assert [path.name[:2] for path in notebooks] == ["01", "02", "03", "04", "05", "06"]
     for notebook in notebooks:
         document = json.loads(notebook.read_text(encoding="utf-8"))
-        first_code = next(
-            cell for cell in document["cells"] if cell["cell_type"] == "code"
+        assert all(not cell.get("outputs") for cell in document["cells"])
+        source = "\n".join(
+            "".join(cell["source"]) for cell in document["cells"]
         )
-        source = "".join(first_code["source"])
-        assert "sys.path.insert" in source
-        lines = source.splitlines()
-        last_import = max(
-            index for index, line in enumerate(lines) if "from evt_demo" in line
-        )
-        import_only_source = "\n".join(lines[: last_import + 1])
-        subprocess.run(
-            [sys.executable, "-c", import_only_source],
-            cwd=repository_root,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        subprocess.run(
-            [sys.executable, "-c", import_only_source],
-            cwd=notebook.parent,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
+        assert "fractal_extreme_series.csv" in source
+        assert "SEED = 42" in source
+        assert "sys.path.insert" not in source
+
+    agent_notebooks = notebooks[2:]
+    for notebook in agent_notebooks:
+        source = notebook.read_text(encoding="utf-8")
+        assert "from graph_evt_agent import" in source
+        assert "ResearchTask" in source
+
+
+def test_research_dataset_schema_and_size():
+    data_path = Path(__file__).resolve().parents[1] / "data/fractal_extreme_series.csv"
+    lines = data_path.read_text(encoding="utf-8").splitlines()
+
+    assert lines[0] == "time,value"
+    assert len(lines) == 4097
+    assert not (data_path.parent / "synthetic_data.csv").exists()
