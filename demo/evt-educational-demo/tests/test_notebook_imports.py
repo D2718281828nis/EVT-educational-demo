@@ -18,12 +18,13 @@ def test_notebooks_share_dataset_and_use_supported_library_api():
     demo_root = Path(__file__).resolve().parents[1]
     notebooks = sorted((demo_root / "notebooks").glob("*.ipynb"))
 
-    assert [path.name[:2] for path in notebooks] == ["01", "02", "03", "04", "05", "06"]
+    assert [path.name[:2] for path in notebooks] == ["01", "02", "03", "04", "05", "06", "07"]
     for notebook in notebooks:
         document = json.loads(notebook.read_text(encoding="utf-8"))
         assert all(not cell.get("outputs") for cell in document["cells"])
         source = "\n".join("".join(cell["source"]) for cell in document["cells"])
-        assert "fractal_extreme_series.csv" in source
+        expected_data = "kuramoto_synchronized_series.csv" if notebook.name.startswith("07") else "fractal_extreme_series.csv"
+        assert expected_data in source
         assert "SEED = 42" in source
         assert "sys.path.insert" not in source
 
@@ -34,6 +35,26 @@ def test_notebooks_share_dataset_and_use_supported_library_api():
         assert "ResearchAgent" not in source
         assert "ResearchTask" not in source
         assert "LLMConfig" not in source
+
+
+def test_llm_notebook_uses_graph_evt_agent_team_without_embedding_a_key():
+    notebook = Path(__file__).resolve().parents[1] / "notebooks/04_llm_hypothesis_agent.ipynb"
+    source = notebook.read_text(encoding="utf-8")
+    assert "EVTAgentTeam" in source
+    assert "MistralClient" in source
+    assert 'os.getenv(\\"MISTRAL_API_KEY\\")' in source
+    assert "api_key=" not in source
+
+
+def test_visualization_notebook_bootstraps_local_src_before_import():
+    notebook = Path(__file__).resolve().parents[1] / "notebooks/07_detection_and_source_visualization.ipynb"
+    document = json.loads(notebook.read_text(encoding="utf-8"))
+    source = "".join(document["cells"][1]["source"])
+
+    assert 'sys.path.append(src_path)' in source
+    assert source.index('sys.path.append(src_path)') < source.index(
+        "from evt_demo.visualization import plot_evt_source_result"
+    )
 
 
 def test_documented_pipeline_symbols_are_exported():
