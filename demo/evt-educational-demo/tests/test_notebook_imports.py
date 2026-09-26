@@ -46,6 +46,17 @@ def test_llm_notebook_uses_graph_evt_agent_team_without_embedding_a_key():
     assert "api_key=" not in source
 
 
+def test_visualization_notebook_bootstraps_local_src_before_import():
+    notebook = Path(__file__).resolve().parents[1] / "notebooks/07_detection_and_source_visualization.ipynb"
+    document = json.loads(notebook.read_text(encoding="utf-8"))
+    source = "".join(document["cells"][1]["source"])
+
+    assert 'sys.path.append(src_path)' in source
+    assert source.index('sys.path.append(src_path)') < source.index(
+        "from evt_demo.visualization import plot_evt_source_result"
+    )
+
+
 def test_documented_pipeline_symbols_are_exported():
     missing = PUBLIC_PIPELINE_NAMES - set(dir(graph_evt_agent))
     assert not missing
