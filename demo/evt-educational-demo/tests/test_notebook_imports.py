@@ -54,6 +54,9 @@ def test_llm_notebook_uses_graph_evt_agent_team_without_embedding_a_key():
     assert "MistralAPIError" in source
     assert "Mistral rate limit (HTTP 429)" in source
     assert "mistral_client.complete" in source
+    assert 'df[\\"is_extreme\\"]' in source
+    assert "BASELINE_SIZE = event_start" in source
+    assert "detected_in_labeled_event" in source
     assert source.index("mistral_client.complete") < source.index(
         "pipeline = GraphEVTPipeline"
     )
