@@ -1,0 +1,12 @@
+# Local Python environment and secrets
+.venv/
+.env
+.env.*
+!.env.example
+
+# Python caches
+__pycache__/
+*.py[cod]
+
+# Local VS Code settings may contain machine-specific paths
+.vscode/
