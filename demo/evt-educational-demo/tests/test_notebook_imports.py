@@ -18,28 +18,30 @@ def test_notebooks_share_dataset_and_use_supported_library_api():
     demo_root = Path(__file__).resolve().parents[1]
     notebooks = sorted((demo_root / "notebooks").glob("*.ipynb"))
 
-    assert [path.name[:2] for path in notebooks] == ["01", "02", "03", "04", "05", "06", "07", "08"]
+    assert [path.name[:2] for path in notebooks] == ["01", "02", "03", "04", "05", "06", "07", "08", "09"]
     for notebook in notebooks:
         document = json.loads(notebook.read_text(encoding="utf-8"))
-        if notebook.name.startswith("08"):
-            assert all(not cell.get("outputs") for cell in document["cells"])
         source = "\n".join("".join(cell["source"]) for cell in document["cells"])
         expected_data = (
             "kuramoto_synchronized_series.csv"
-            if notebook.name.startswith(("07", "08"))
+            if notebook.name.startswith(("07", "08", "09"))
             else "fractal_extreme_series.csv"
         )
         assert expected_data in source
         assert "SEED = 42" in source
         assert "sys.path.insert" not in source
 
-    for notebook in notebooks[2:]:
+    for notebook in notebooks[2:8]:
         source = notebook.read_text(encoding="utf-8")
         assert "from graph_evt_agent import" in source
         assert "GraphEVTPipeline" in source
         assert "ResearchAgent" not in source
         assert "ResearchTask" not in source
         assert "LLMConfig" not in source
+
+    learning_notebook = notebooks[8].read_text(encoding="utf-8")
+    for symbol in ("GraphEpisode", "GraphLearningConfig", "GraphProcessModel"):
+        assert symbol in learning_notebook
 
 
 def test_llm_notebook_uses_graph_evt_agent_team_without_embedding_a_key():
