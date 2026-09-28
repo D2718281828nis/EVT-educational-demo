@@ -23,7 +23,8 @@ python -m pip install --no-deps -e demo/evt-educational-demo
 ```
 
 Последняя строка `requirements.txt` устанавливает Graph-EVT-agent напрямую из
-его GitHub-репозитория на commit `a77f488` с API обучения GNN/GAT. Численное ядро библиотеки детерминировано: ноутбуки
+его GitHub-репозитория на актуальном commit `790b4f1` с API разметки эпизодов,
+обучения GNN/GAT и progress bars (`tqdm`). Численное ядро библиотеки детерминировано: ноутбуки
 используют `EVTConfig`, `GraphConfig`, `InputConfig` и `GraphEVTPipeline`. В
 ноутбуке 04 дополнительно показан настоящий LLM-режим `EVTAgentTeam` с
 `MistralClient`: для его включения задайте `MISTRAL_API_KEY` только через

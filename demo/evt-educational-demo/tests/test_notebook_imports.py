@@ -40,7 +40,14 @@ def test_notebooks_share_dataset_and_use_supported_library_api():
         assert "LLMConfig" not in source
 
     learning_notebook = notebooks[8].read_text(encoding="utf-8")
-    for symbol in ("GraphEpisode", "GraphLearningConfig", "GraphProcessModel"):
+    for symbol in (
+        "EpisodeLabeler",
+        "LabelingConfig",
+        "GraphLearningConfig",
+        "ProcessModelTrainer",
+        "EvaluationCase",
+        "EvaluationOrchestrator",
+    ):
         assert symbol in learning_notebook
 
 
