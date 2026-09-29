@@ -1,5 +1,5 @@
-role,tail_quantile,alarm_probability,persistence,graph_method,alarm_threshold,post_baseline_exceedances,detected,first_persistent_index,graph_available,estimated_source
-sensitive,0.85,0.97,1,ar,5.468803783845372,54,True,300.0,True,channel_08
-primary,0.9,0.99,2,ar,5.494979693764073,33,True,300.0,True,channel_08
-conservative,0.95,0.999,3,ar,5.509289112175743,5,False,,False,
-alt_graph_dfa,0.9,0.99,2,dfa,5.494979693764073,33,True,300.0,True,channel_08
+role,tail_quantile,alarm_probability,persistence,graph_method,alarm_threshold,post_baseline_exceedances,detected,first_persistent_index,delay_samples,graph_available,estimated_source,source_correct
+persistence_1_ar,0.85,0.97,1,ar,1.0763861443061515,57,True,949,17,True,channel_00,True
+persistence_2_ar,0.85,0.97,2,ar,1.0763861443061515,57,True,959,27,True,channel_01,False
+conservative_persistence_2,0.9,0.99,2,ar,1.0829788763550698,44,True,959,27,True,channel_01,False
+persistence_1_dfa,0.85,0.97,1,dfa,1.0763861443061515,57,True,949,17,True,channel_00,True

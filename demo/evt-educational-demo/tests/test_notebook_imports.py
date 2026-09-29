@@ -48,7 +48,8 @@ def test_nd_notebooks_use_the_kuramoto_series_and_supported_library_api():
     for notebook in notebooks:
         document = json.loads(notebook.read_text(encoding="utf-8"))
         source = "\n".join("".join(cell["source"]) for cell in document["cells"])
-        assert "kuramoto_synchronized_series.csv" in source
+        assert "kuramoto_propagation_series.csv" in source
+        assert "kuramoto_synchronized_series.csv" not in source
         assert "fractal_extreme_series.csv" not in source
         assert "SEED = 42" in source
         assert "sys.path.insert" not in source
@@ -97,6 +98,40 @@ def test_1d_llm_notebook_uses_the_known_event_label_as_an_oracle_baseline():
     assert 'df[\\"is_extreme\\"]' in source
     assert "BASELINE_SIZE = event_start" in source
     assert "detected_in_labeled_event" in source
+
+
+def test_nd_llm_notebook_uses_the_known_event_label_as_an_oracle_baseline():
+    notebook = Path(__file__).resolve().parents[1] / "notebooks/n-d/04_llm_hypothesis_agent.ipynb"
+    source = notebook.read_text(encoding="utf-8")
+    assert 'df[\\"is_extreme\\"]' in source
+    assert "BASELINE_SIZE = event_onset" in source
+    assert "detected_in_labeled_event" in source
+    assert "true_source_name" in source
+
+
+def test_nd_gnn_notebook_demonstrates_the_shared_baseline_pitfall_and_its_fix():
+    notebook = Path(__file__).resolve().parents[1] / "notebooks/n-d/09_gnn_gat_process_modeling.ipynb"
+    source = notebook.read_text(encoding="utf-8")
+    assert "real_case_naive" in source
+    assert "real_event_onset" in source
+    assert "real_source_channel" in source
+    # The naive shared baseline=300 attempt must come before the corrected,
+    # per-recording oracle baseline -- this notebook's point is showing both.
+    assert source.index("real_case_naive") < source.index("real_pipeline = GraphEVTPipeline")
+
+
+def test_nd_gnn_notebook_trains_on_kuramoto_recordings_not_the_library_synthetic_model():
+    notebook = Path(__file__).resolve().parents[1] / "notebooks/n-d/09_gnn_gat_process_modeling.ipynb"
+    source = notebook.read_text(encoding="utf-8")
+    assert "generate_kuramoto_propagation_recording" in source
+    assert "import make_recording" not in source
+    assert "= make_recording(" not in source
+    # Three distinct checks: cross-domain held-out, naive same-domain
+    # baseline, and this recording's own oracle baseline.
+    assert "heldout_pipeline" in source
+    assert "naive_pipeline" in source
+    assert "real_pipeline" in source
+    assert source.index("heldout_pipeline") < source.index("naive_pipeline") < source.index("real_pipeline")
 
 
 def test_visualization_notebook_bootstraps_local_src_before_import():

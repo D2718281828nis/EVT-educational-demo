@@ -12,7 +12,7 @@ from numpy.typing import ArrayLike, NDArray
 
 from graph_evt_agent import PipelineResult
 
-from .data_generator import KuramotoTimeSeries
+from .data_generator import KuramotoPropagationSeries, KuramotoTimeSeries
 
 
 def plot_fractal_extreme_series(
@@ -55,6 +55,58 @@ def plot_kuramoto_time_series(
     axes[1].plot(time, series.coherence, color="black")
     axes[1].set(xlabel="time", ylabel="coherence", ylim=(0.0, 1.05))
     figure.tight_layout()
+    _save(figure, output_path)
+    return figure, axes
+
+
+def plot_kuramoto_propagation_series(
+    series: KuramotoPropagationSeries,
+    channel_names: list[str] | tuple[str, ...] | None = None,
+    output_path: str | Path | None = None,
+) -> tuple[Figure, NDArray[np.object_]]:
+    """Plot a propagation series with the source channel and event front marked.
+
+    The top panel highlights the source channel's trace against the rest.
+    The bottom panel shows the ground-truth ``channel_event_mask``, with
+    channels ordered by their arrival delay from the source, so the
+    propagation front is visible directly rather than only in metadata.
+    """
+    n_channels = series.values.shape[1]
+    names = list(channel_names or [f"channel_{index:02d}" for index in range(n_channels)])
+    if len(names) != n_channels:
+        raise ValueError("channel_names must match the number of channels")
+    time = np.arange(series.values.shape[0]) * series.time_step
+
+    figure, axes = plt.subplots(2, 1, figsize=(12, 7), sharex=True, constrained_layout=True)
+
+    for channel in range(n_channels):
+        is_source = channel == series.source_channel
+        axes[0].plot(
+            time, series.values[:, channel],
+            color="black" if is_source else "tab:blue",
+            linewidth=1.6 if is_source else 0.6,
+            alpha=1.0 if is_source else 0.5,
+            zorder=3 if is_source else 1,
+            label=f"{names[channel]} (source)" if is_source else None,
+        )
+    window_end = min(series.event_onset + series.event_duration - 1, len(time) - 1)
+    axes[0].axvspan(time[series.event_onset], time[window_end], color="tab:red", alpha=0.12,
+                    label="event window at source")
+    axes[0].set(title="Kuramoto propagation series (source channel highlighted)", ylabel="value")
+    axes[0].legend(loc="upper left")
+
+    order = np.argsort(series.channel_arrival_delay)
+    image = axes[1].imshow(
+        series.channel_event_mask[:, order].T.astype(float),
+        aspect="auto", origin="lower", cmap="Reds", vmin=0, vmax=1,
+        extent=(time[0], time[-1], -0.5, n_channels - 0.5),
+    )
+    axes[1].set(
+        yticks=np.arange(n_channels), yticklabels=[names[index] for index in order],
+        xlabel="time", ylabel="channel (sorted by arrival delay)",
+        title="Ground-truth propagation front",
+    )
+    figure.colorbar(image, ax=axes[1], label="event active (ground truth)")
     _save(figure, output_path)
     return figure, axes
 

@@ -9,9 +9,35 @@
   "kuramoto": {
     "n_channels": 12,
     "source_channel": 0,
-    "coupling": 2.0,
+    "coupling": 0.7,
     "time_step": 0.02,
     "initial_coherence": 0.25355538252811544,
-    "final_coherence": 0.9987397280805617
+    "final_coherence": 0.9894241622233731
+  },
+  "kuramoto_propagation": {
+    "n_channels": 12,
+    "source_channel": 0,
+    "coupling": 0.7,
+    "time_step": 0.02,
+    "hurst_exponent": 0.75,
+    "event_onset": 932,
+    "event_duration": 75,
+    "event_magnitude_in_sigma": 2.0,
+    "delay_per_hop": 5,
+    "decay_per_hop": 0.65,
+    "channel_arrival_delay": [
+      0,
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      25,
+      20,
+      15,
+      10,
+      5
+    ]
   }
 }
