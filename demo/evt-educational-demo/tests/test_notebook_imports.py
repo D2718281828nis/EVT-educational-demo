@@ -3,6 +3,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 import graph_evt_agent
 
 
@@ -14,24 +16,20 @@ PUBLIC_PIPELINE_NAMES = {
 }
 
 
-def test_notebooks_share_dataset_and_use_supported_library_api():
+def test_1d_notebooks_use_the_fractal_series_and_supported_library_api():
     demo_root = Path(__file__).resolve().parents[1]
-    notebooks = sorted((demo_root / "notebooks").glob("*.ipynb"))
+    notebooks = sorted((demo_root / "notebooks/1-d").glob("*.ipynb"))
 
-    assert [path.name[:2] for path in notebooks] == ["01", "02", "03", "04", "05", "06", "07", "08", "09"]
+    assert [path.name[:2] for path in notebooks] == ["01", "02", "03", "04", "05", "06", "07"]
     for notebook in notebooks:
         document = json.loads(notebook.read_text(encoding="utf-8"))
         source = "\n".join("".join(cell["source"]) for cell in document["cells"])
-        expected_data = (
-            "kuramoto_synchronized_series.csv"
-            if notebook.name.startswith(("07", "08", "09"))
-            else "fractal_extreme_series.csv"
-        )
-        assert expected_data in source
+        assert "fractal_extreme_series.csv" in source
+        assert "kuramoto_synchronized_series.csv" not in source
         assert "SEED = 42" in source
         assert "sys.path.insert" not in source
 
-    for notebook in notebooks[2:8]:
+    for notebook in notebooks[2:]:
         source = notebook.read_text(encoding="utf-8")
         assert "from graph_evt_agent import" in source
         assert "GraphEVTPipeline" in source
@@ -39,7 +37,31 @@ def test_notebooks_share_dataset_and_use_supported_library_api():
         assert "ResearchTask" not in source
         assert "LLMConfig" not in source
 
-    learning_notebook = notebooks[8].read_text(encoding="utf-8")
+
+def test_nd_notebooks_use_the_kuramoto_series_and_supported_library_api():
+    demo_root = Path(__file__).resolve().parents[1]
+    notebooks = sorted((demo_root / "notebooks/n-d").glob("*.ipynb"))
+
+    assert [path.name[:2] for path in notebooks] == [
+        "01", "02", "03", "04", "05", "06", "07", "08", "09", "10",
+    ]
+    for notebook in notebooks:
+        document = json.loads(notebook.read_text(encoding="utf-8"))
+        source = "\n".join("".join(cell["source"]) for cell in document["cells"])
+        assert "kuramoto_synchronized_series.csv" in source
+        assert "fractal_extreme_series.csv" not in source
+        assert "SEED = 42" in source
+        assert "sys.path.insert" not in source
+
+    for notebook in notebooks[2:]:
+        source = notebook.read_text(encoding="utf-8")
+        assert "from graph_evt_agent import" in source
+        assert "GraphEVTPipeline" in source
+        assert "ResearchAgent" not in source
+        assert "ResearchTask" not in source
+        assert "LLMConfig" not in source
+
+    learning_notebook = (demo_root / "notebooks/n-d/09_gnn_gat_process_modeling.ipynb").read_text(encoding="utf-8")
     for symbol in (
         "EpisodeLabeler",
         "LabelingConfig",
@@ -51,8 +73,9 @@ def test_notebooks_share_dataset_and_use_supported_library_api():
         assert symbol in learning_notebook
 
 
-def test_llm_notebook_uses_graph_evt_agent_team_without_embedding_a_key():
-    notebook = Path(__file__).resolve().parents[1] / "notebooks/04_llm_hypothesis_agent.ipynb"
+@pytest.mark.parametrize("subdir", ["1-d", "n-d"])
+def test_llm_notebook_uses_graph_evt_agent_team_without_embedding_a_key(subdir):
+    notebook = Path(__file__).resolve().parents[1] / f"notebooks/{subdir}/04_llm_hypothesis_agent.ipynb"
     source = notebook.read_text(encoding="utf-8")
     assert "EVTAgentTeam" in source
     assert "MistralClient" in source
@@ -63,16 +86,21 @@ def test_llm_notebook_uses_graph_evt_agent_team_without_embedding_a_key():
     assert "MistralAPIError" in source
     assert "Mistral rate limit (HTTP 429)" in source
     assert "mistral_client.complete" in source
-    assert 'df[\\"is_extreme\\"]' in source
-    assert "BASELINE_SIZE = event_start" in source
-    assert "detected_in_labeled_event" in source
     assert source.index("mistral_client.complete") < source.index(
         "pipeline = GraphEVTPipeline"
     )
 
 
+def test_1d_llm_notebook_uses_the_known_event_label_as_an_oracle_baseline():
+    notebook = Path(__file__).resolve().parents[1] / "notebooks/1-d/04_llm_hypothesis_agent.ipynb"
+    source = notebook.read_text(encoding="utf-8")
+    assert 'df[\\"is_extreme\\"]' in source
+    assert "BASELINE_SIZE = event_start" in source
+    assert "detected_in_labeled_event" in source
+
+
 def test_visualization_notebook_bootstraps_local_src_before_import():
-    notebook = Path(__file__).resolve().parents[1] / "notebooks/07_detection_and_source_visualization.ipynb"
+    notebook = Path(__file__).resolve().parents[1] / "notebooks/n-d/07_detection_and_source_visualization.ipynb"
     document = json.loads(notebook.read_text(encoding="utf-8"))
     source = "".join(document["cells"][1]["source"])
 
