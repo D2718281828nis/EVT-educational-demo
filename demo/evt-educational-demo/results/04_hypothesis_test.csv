@@ -1,2 +1,0 @@
-hypothesis,candidate_threshold,candidate_count,observed_volatility_difference,randomisations,block_size,two_sided_p_value,reject_at_0.05
-EVT candidates have higher preceding 32-step volatility,7.491369315313106,12,-0.18249674874882893,999,64,0.231,False

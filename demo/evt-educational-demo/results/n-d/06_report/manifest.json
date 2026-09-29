@@ -1,0 +1,36 @@
+{
+  "data_file": "data/generated/kuramoto_synchronized_series.csv",
+  "data_sha256": "6b44361d5df20571b49c0cb1ea9239c614d9c4cb178fbd606f83ab1f2b1c2564",
+  "library": "graph-evt-agent",
+  "library_version": "0.1.0",
+  "seed": 42,
+  "parameters": {
+    "baseline_size": 300,
+    "tail_quantile": 0.9,
+    "alarm_probability": 0.99,
+    "persistence": 2,
+    "top_k": 3,
+    "graph_method": "ar"
+  },
+  "input_profile": {
+    "kind": "multivariate",
+    "n_time": 1500,
+    "n_channels": 12
+  },
+  "detection": {
+    "detected": true,
+    "time_index": 300,
+    "alarm_threshold": 5.494979693764073
+  },
+  "graph_available": true,
+  "estimated_source": "channel_08",
+  "artifacts": {
+    "indicator_csv": "indicator.csv"
+  },
+  "limitations": [
+    "synthetic unlabelled multichannel series",
+    "graph edges are estimated on the baseline only, not causal",
+    "source ranking is an explainable heuristic, not a trained causal model",
+    "results depend on baseline, EVT configuration, and graph method"
+  ]
+}
