@@ -6,6 +6,23 @@
     "event_duration": 75,
     "event_magnitude_in_sigma": 8.0
   },
+  "additive_fractal": {
+    "hurst_exponent": 0.75,
+    "event_onset": 672,
+    "event_duration": 75,
+    "extreme_magnitude_in_sigma": 8.0,
+    "oscillator_periods": [
+      300.0,
+      97.0,
+      41.0
+    ],
+    "oscillator_amplitudes": [
+      1.0,
+      0.6,
+      0.3
+    ],
+    "simple_noise_sigma": 0.3
+  },
   "kuramoto": {
     "n_channels": 12,
     "source_channel": 0,

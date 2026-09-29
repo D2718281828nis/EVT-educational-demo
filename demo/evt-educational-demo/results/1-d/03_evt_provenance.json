@@ -1,31 +1,31 @@
 {
   "library": "graph-evt-agent",
   "library_version": "0.1.0",
-  "input_file": "fractal_extreme_series.csv",
+  "input_file": "additive_fractal_series.csv",
   "observations": 1500,
   "seed": 42,
   "configuration": {
-    "baseline_size": 604,
+    "baseline_size": 672,
     "baseline_selection": "labeled_event_start_oracle_assisted",
     "tail_quantile": 0.95,
     "alarm_probability": 0.999,
     "persistence": 3
   },
   "labeled_event": {
-    "start": 604,
-    "end": 678
+    "start": 672,
+    "end": 746
   },
   "detection": {
     "detected": true,
-    "time_index": 619,
+    "time_index": 691,
     "detected_in_labeled_event": true,
-    "detection_delay_samples": 15,
-    "alarm_threshold": 3.3323876862361708,
+    "detection_delay_samples": 19,
+    "alarm_threshold": 1.9963654630457044,
     "location": [
-      -0.039036224409784
+      0.13053946096943841
     ],
     "scale": [
-      0.9720338251127258
+      1.0625989214321512
     ]
   },
   "graph_available": false,

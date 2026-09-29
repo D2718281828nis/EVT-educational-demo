@@ -15,11 +15,13 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from evt_demo.data_generator import (
+    generate_additive_fractal_series,
     generate_fractal_extreme_series,
     generate_kuramoto_propagation_series,
     generate_kuramoto_time_series,
 )
 from evt_demo.visualization import (
+    plot_additive_fractal_series_components,
     plot_fractal_extreme_series,
     plot_kuramoto_propagation_series,
     plot_kuramoto_time_series,
@@ -44,6 +46,16 @@ def main() -> None:
                          help="Propagation delay (samples) per ring hop from the source channel")
     parser.add_argument("--decay-per-hop", type=float, default=0.65,
                          help="Propagation amplitude decay factor per ring hop from the source channel")
+    parser.add_argument("--additive-oscillator-periods", type=float, nargs=3, default=[300.0, 97.0, 41.0],
+                         metavar=("T1", "T2", "T3"),
+                         help="Periods (samples) of the three summed oscillators in the additive 1-D series")
+    parser.add_argument("--additive-oscillator-amplitudes", type=float, nargs=3, default=[1.0, 0.6, 0.3],
+                         metavar=("A1", "A2", "A3"),
+                         help="Amplitudes of the three summed oscillators in the additive 1-D series")
+    parser.add_argument("--additive-noise-sigma", type=float, default=0.3,
+                         help="Standard deviation of the simple (non-fractal) noise in the additive 1-D series")
+    parser.add_argument("--additive-extreme-magnitude", type=float, default=8.0,
+                         help="Extreme-injection amplitude in sigmas for the additive 1-D series")
     parser.add_argument("--output-dir", type=Path, default=ROOT / "data" / "generated")
     args = parser.parse_args()
 
@@ -52,6 +64,32 @@ def main() -> None:
     fractal_values, event_mask = generate_fractal_extreme_series(args.points, args.hurst, args.seed)
     pd.DataFrame({"timestamp": np.arange(args.points), "value": fractal_values, "is_extreme": event_mask.astype(int)}).to_csv(output / "fractal_extreme_series.csv", index=False)
     fractal_figure, _ = plot_fractal_extreme_series(fractal_values, event_mask, args.hurst, output / "fractal_extreme_series.png")
+
+    # A second, explicitly additive 1-D series: values = oscillators (fixed,
+    # deterministic) + extreme_injection (Hurst-colored burst from
+    # event_onset, the part a POT/GPD EVT detector is meant to catch) +
+    # simple_noise (plain i.i.d. Gaussian). Kept separate from
+    # fractal_extreme_series.csv above so existing 1-d notebooks are
+    # unaffected by this addition.
+    additive = generate_additive_fractal_series(
+        args.points, args.hurst, args.seed,
+        oscillator_periods=tuple(args.additive_oscillator_periods),
+        oscillator_amplitudes=tuple(args.additive_oscillator_amplitudes),
+        simple_noise_sigma=args.additive_noise_sigma,
+        extreme_magnitude_in_sigma=args.additive_extreme_magnitude,
+    )
+    additive_frame = pd.DataFrame({
+        "timestamp": np.arange(args.points),
+        "value": additive.values,
+        "oscillators": additive.oscillators,
+        "extreme_injection": additive.extreme_injection,
+        "simple_noise": additive.simple_noise,
+        "is_extreme": additive.event_mask.astype(int),
+    })
+    additive_frame.to_csv(output / "additive_fractal_series.csv", index=False)
+    additive_figure, _ = plot_additive_fractal_series_components(
+        additive, output_path=output / "additive_fractal_series.png",
+    )
 
     kuramoto = generate_kuramoto_time_series(
         args.points, args.channels, args.source_channel, args.seed,
@@ -83,6 +121,15 @@ def main() -> None:
     metadata = {
         "seed": args.seed,
         "fractal_noise": {"hurst_exponent": args.hurst, "event_onset": int(np.flatnonzero(event_mask)[0]), "event_duration": int(event_mask.sum()), "event_magnitude_in_sigma": 8.0},
+        "additive_fractal": {
+            "hurst_exponent": args.hurst,
+            "event_onset": additive.event_onset,
+            "event_duration": additive.event_duration,
+            "extreme_magnitude_in_sigma": additive.extreme_magnitude,
+            "oscillator_periods": list(additive.oscillator_periods),
+            "oscillator_amplitudes": list(additive.oscillator_amplitudes),
+            "simple_noise_sigma": args.additive_noise_sigma,
+        },
         "kuramoto": {"n_channels": args.channels, "source_channel": args.source_channel, "coupling": args.coupling, "time_step": kuramoto.time_step, "initial_coherence": float(kuramoto.coherence[0]), "final_coherence": float(kuramoto.coherence[-1])},
         "kuramoto_propagation": {
             "n_channels": args.channels,
@@ -102,6 +149,7 @@ def main() -> None:
 
     import matplotlib.pyplot as plt
     plt.close(fractal_figure)
+    plt.close(additive_figure)
     plt.close(kuramoto_figure)
     plt.close(propagation_figure)
     print(f"Generated datasets and plots in {output}")

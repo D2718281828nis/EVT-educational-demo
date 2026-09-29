@@ -16,15 +16,16 @@ PUBLIC_PIPELINE_NAMES = {
 }
 
 
-def test_1d_notebooks_use_the_fractal_series_and_supported_library_api():
+def test_1d_notebooks_use_the_additive_fractal_series_and_supported_library_api():
     demo_root = Path(__file__).resolve().parents[1]
     notebooks = sorted((demo_root / "notebooks/1-d").glob("*.ipynb"))
 
-    assert [path.name[:2] for path in notebooks] == ["01", "02", "03", "04", "05", "06", "07", "08"]
+    assert [path.name[:2] for path in notebooks] == ["01", "02", "03", "04", "05", "06", "07", "08", "09"]
     for notebook in notebooks:
         document = json.loads(notebook.read_text(encoding="utf-8"))
         source = "\n".join("".join(cell["source"]) for cell in document["cells"])
-        assert "fractal_extreme_series.csv" in source
+        assert "additive_fractal_series.csv" in source
+        assert "fractal_extreme_series.csv" not in source
         assert "kuramoto_synchronized_series.csv" not in source
         assert "SEED = 42" in source
         assert "sys.path.insert" not in source
@@ -32,10 +33,32 @@ def test_1d_notebooks_use_the_fractal_series_and_supported_library_api():
     for notebook in notebooks[2:]:
         source = notebook.read_text(encoding="utf-8")
         assert "from graph_evt_agent import" in source
-        assert "GraphEVTPipeline" in source
         assert "ResearchAgent" not in source
         assert "ResearchTask" not in source
         assert "LLMConfig" not in source
+
+    # 03-08 exercise the detection pipeline; 09 is about the temporal
+    # GNN/GAT training module instead and legitimately never touches it.
+    for notebook in notebooks[2:8]:
+        assert "GraphEVTPipeline" in notebook.read_text(encoding="utf-8")
+
+
+def test_1d_temporal_graph_notebook_uses_the_updated_library_api():
+    notebook = Path(__file__).resolve().parents[1] / "notebooks/1-d/09_temporal_graph_gnn_gat.ipynb"
+    source = notebook.read_text(encoding="utf-8")
+    for symbol in (
+        "TemporalGraphConfig",
+        "univariate_temporal_graph",
+        "univariate_graph_episode",
+        "train_1d",
+        "GraphProcessModel",
+    ):
+        assert symbol in source
+    # Model persistence must be demonstrated, not just imported.
+    assert ".save(" in source
+    assert ".load(" in source
+    # window_starts must actually be used to map a node back to a time window.
+    assert "window_size" in source
 
 
 def test_nd_notebooks_use_the_kuramoto_series_and_supported_library_api():

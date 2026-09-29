@@ -1,19 +1,19 @@
 {
-  "data_file": "data/generated/fractal_extreme_series.csv",
-  "data_sha256": "8d13d380c47327db1ca8a5324fb73dc2d7106dee511d27c8543267104f6204f3",
+  "data_file": "data/generated/additive_fractal_series.csv",
+  "data_sha256": "472b993215fead6f2b7e9c792839b21fa1af06cfd1af464e1a778cc2b07301cd",
   "library": "graph-evt-agent",
   "library_version": "0.1.0",
   "seed": 42,
   "parameters": {
-    "baseline_size": 604,
+    "baseline_size": 672,
     "tail_quantile": 0.95,
     "alarm_probability": 0.999,
     "persistence": 3
   },
   "baseline_selection": "labeled_event_start_oracle_assisted",
   "labeled_event": {
-    "start": 604,
-    "end": 678
+    "start": 672,
+    "end": 746
   },
   "input_profile": {
     "kind": "univariate",
@@ -22,10 +22,10 @@
   },
   "detection": {
     "detected": true,
-    "time_index": 619,
+    "time_index": 691,
     "detected_in_labeled_event": true,
-    "detection_delay_samples": 15,
-    "alarm_threshold": 3.3323876862361708
+    "detection_delay_samples": 19,
+    "alarm_threshold": 1.9963654630457044
   },
   "artifacts": {
     "indicator_csv": "indicator.csv"

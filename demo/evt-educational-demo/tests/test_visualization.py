@@ -5,8 +5,8 @@ matplotlib.use("Agg")
 
 from graph_evt_agent import EVTConfig, GraphConfig, GraphEVTPipeline, InputConfig
 
-from evt_demo.data_generator import generate_kuramoto_time_series
-from evt_demo.visualization import plot_evt_source_result
+from evt_demo.data_generator import generate_additive_fractal_series, generate_kuramoto_time_series
+from evt_demo.visualization import plot_additive_fractal_series_components, plot_evt_source_result
 
 
 def test_evt_source_plot_exposes_detection_and_ranking(tmp_path):
@@ -47,3 +47,17 @@ def test_evt_source_plot_rejects_mismatched_time_axis():
 
     with np.testing.assert_raises_regex(ValueError, "timestamps"):
         plot_evt_source_result(series.values, result, timestamps=np.arange(3))
+
+
+def test_additive_fractal_plot_shows_all_four_panels(tmp_path):
+    series = generate_additive_fractal_series(300, 0.75, seed=5)
+    destination = tmp_path / "additive.png"
+    figure, axes = plot_additive_fractal_series_components(series, output_path=destination)
+
+    assert destination.exists()
+    assert len(axes) == 4
+    assert "Oscillators" in axes[0].get_title()
+    assert "Extreme injection" in axes[1].get_title()
+    assert "Simple stochastic" in axes[2].get_title()
+    assert "Sum" in axes[3].get_title()
+    figure.clear()

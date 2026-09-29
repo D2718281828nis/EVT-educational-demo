@@ -12,7 +12,7 @@ from numpy.typing import ArrayLike, NDArray
 
 from graph_evt_agent import PipelineResult
 
-from .data_generator import KuramotoPropagationSeries, KuramotoTimeSeries
+from .data_generator import AdditiveFractalSeries, KuramotoPropagationSeries, KuramotoTimeSeries
 
 
 def plot_fractal_extreme_series(
@@ -39,6 +39,49 @@ def plot_fractal_extreme_series(
     )
     axes.set(title=f"Fractal-noise example (H={hurst_exponent:g})", xlabel="sample", ylabel="value")
     axes.legend()
+    _save(figure, output_path)
+    return figure, axes
+
+
+def plot_additive_fractal_series_components(
+    series: AdditiveFractalSeries,
+    output_path: str | Path | None = None,
+) -> tuple[Figure, NDArray[np.object_]]:
+    """Show where and how an :class:`AdditiveFractalSeries` was built.
+
+    Four stacked panels: the three additive components on their own, and
+    their sum (the actual series) with the event window and onset marked, so
+    the construction is visible rather than only stated.
+    """
+    n_points = series.values.shape[0]
+    time = np.arange(n_points)
+    window_end = min(series.event_onset + series.event_duration - 1, n_points - 1)
+
+    figure, axes = plt.subplots(4, 1, figsize=(13, 9.5), sharex=True, constrained_layout=True)
+
+    axes[0].plot(time, series.oscillators, color="#7c3aed", linewidth=0.9)
+    periods = ", ".join(f"{p:g}" for p in series.oscillator_periods)
+    axes[0].set(title=f"1. Oscillators: sum of 3 sine waves (periods {periods}), deterministic", ylabel="value")
+
+    axes[1].plot(time, series.extreme_injection, color="#dc2626", linewidth=0.9)
+    axes[1].axvspan(series.event_onset, window_end, color="#dc2626", alpha=0.08)
+    axes[1].set(title=f"2. Extreme injection: Hurst-colored burst (H={series.hurst_exponent:g}) "
+                      f"from event_onset={series.event_onset} -- what EVT is meant to catch",
+               ylabel="value")
+
+    axes[2].plot(time, series.simple_noise, color="#334155", linewidth=0.6)
+    axes[2].set(title="3. Simple stochastic: i.i.d. Gaussian noise, unstructured, everywhere", ylabel="value")
+
+    axes[3].plot(time, series.values, color="#0f766e", linewidth=0.8, label="sum = full series")
+    axes[3].fill_between(time, series.values.min(), series.values.max(), where=series.event_mask,
+                         color="#dc2626", alpha=0.12, label="event window")
+    axes[3].axvline(series.event_onset, color="#dc2626", linestyle="--", linewidth=1,
+                    label=f"event_onset ({series.event_onset})")
+    axes[3].set(title="4. Sum: oscillators + extreme injection + simple noise", xlabel="sample", ylabel="value")
+    axes[3].legend(loc="upper left", fontsize=8)
+
+    for axis in axes:
+        axis.grid(alpha=.2)
     _save(figure, output_path)
     return figure, axes
 

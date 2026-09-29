@@ -82,6 +82,155 @@ def generate_fractal_extreme_series(
     return values, event_mask
 
 
+@dataclass(frozen=True)
+class FractalExtremeComponents:
+    """Additive decomposition of :func:`generate_fractal_extreme_series`'s output:
+    ``values == stochastic_background + extreme_injection``, where
+    ``extreme_injection == extreme_magnitude * deterministic_shape``."""
+
+    stochastic_background: NDArray[np.float64]
+    deterministic_shape: NDArray[np.float64]
+    extreme_injection: NDArray[np.float64]
+    extreme_magnitude: float
+    event_mask: NDArray[np.bool_]
+    values: NDArray[np.float64]
+
+
+def generate_fractal_extreme_series_components(
+    n_points: int = 1_500,
+    hurst_exponent: float = 0.75,
+    seed: int = 42,
+    *,
+    extreme_magnitude: float = 8.0,
+) -> FractalExtremeComponents:
+    """Same generative process as :func:`generate_fractal_extreme_series`, but
+    returning its additive terms separately instead of only their sum.
+
+    ``deterministic_shape`` is the smooth ``sin**2`` pulse envelope (peak 1,
+    no randomness), zero outside the event window. ``stochastic_background``
+    is the Hurst-colored noise. Calling this with the same arguments as
+    :func:`generate_fractal_extreme_series` reproduces its ``values`` and
+    ``event_mask`` exactly, sample for sample.
+    """
+    if n_points < 20:
+        raise ValueError("n_points must be at least 20")
+    if not 0.0 < hurst_exponent < 1.0:
+        raise ValueError("hurst_exponent must be between 0 and 1")
+
+    rng = np.random.default_rng(seed)
+    background = _colored_noise(n_points, hurst_exponent, rng)
+
+    duration = max(5, n_points // 20)
+    low = n_points // 4
+    high = n_points - low - duration
+    onset = int(rng.integers(low, high + 1))
+    event_mask = np.zeros(n_points, dtype=bool)
+    event_mask[onset : onset + duration] = True
+    pulse = np.sin(np.linspace(0.0, np.pi, duration)) ** 2
+
+    deterministic_shape = np.zeros(n_points, dtype=float)
+    deterministic_shape[event_mask] = pulse
+    extreme_injection = extreme_magnitude * deterministic_shape
+
+    return FractalExtremeComponents(
+        stochastic_background=background,
+        deterministic_shape=deterministic_shape,
+        extreme_injection=extreme_injection,
+        extreme_magnitude=extreme_magnitude,
+        event_mask=event_mask,
+        values=background + extreme_injection,
+    )
+
+
+@dataclass(frozen=True)
+class AdditiveFractalSeries:
+    """A 1-D series built as three separately-returned additive components:
+    ``values == oscillators + extreme_injection + simple_noise``."""
+
+    values: NDArray[np.float64]
+    oscillators: NDArray[np.float64]
+    extreme_injection: NDArray[np.float64]
+    simple_noise: NDArray[np.float64]
+    event_mask: NDArray[np.bool_]
+    event_onset: int
+    event_duration: int
+    hurst_exponent: float
+    extreme_magnitude: float
+    oscillator_periods: tuple[float, float, float]
+    oscillator_amplitudes: tuple[float, float, float]
+
+
+def generate_additive_fractal_series(
+    n_points: int = 1_500,
+    hurst_exponent: float = 0.75,
+    seed: int = 42,
+    *,
+    oscillator_periods: tuple[float, float, float] = (300.0, 97.0, 41.0),
+    oscillator_amplitudes: tuple[float, float, float] = (1.0, 0.6, 0.3),
+    oscillator_phases: tuple[float, float, float] = (0.0, 0.3, 0.6),
+    simple_noise_sigma: float = 0.3,
+    extreme_magnitude_in_sigma: float = 8.0,
+) -> AdditiveFractalSeries:
+    """Build a 1-D series from three clearly separable additive components.
+
+    1. ``oscillators`` -- a fixed sum of three sine waves at incommensurate
+       periods. Deterministic: identical for every ``seed``, no randomness.
+    2. ``extreme_injection`` -- zero everywhere except a tapered window
+       starting at a randomly placed ``event_onset``, where it holds
+       Hurst/DFA-colored noise (the same spectral shaping
+       :func:`generate_fractal_extreme_series` uses for its background,
+       here used as the extreme *event* instead). This is the component a
+       downstream POT/GPD EVT detector is meant to flag.
+    3. ``simple_noise`` -- plain i.i.d. Gaussian noise, unstructured and
+       present everywhere, standing in for ordinary measurement noise as
+       distinct from the fractal component above.
+
+    ``values`` is exactly their sum.
+    """
+    if n_points < 20:
+        raise ValueError("n_points must be at least 20")
+    if not 0.0 < hurst_exponent < 1.0:
+        raise ValueError("hurst_exponent must be between 0 and 1")
+    if not len(oscillator_periods) == len(oscillator_amplitudes) == len(oscillator_phases) == 3:
+        raise ValueError("oscillator_periods, oscillator_amplitudes and oscillator_phases must have length 3")
+    if simple_noise_sigma < 0:
+        raise ValueError("simple_noise_sigma must be non-negative")
+
+    time = np.arange(n_points, dtype=float)
+    oscillators = np.zeros(n_points, dtype=float)
+    for period, amplitude, phase in zip(oscillator_periods, oscillator_amplitudes, oscillator_phases):
+        oscillators += amplitude * np.sin(2.0 * np.pi * time / period + phase)
+
+    rng = np.random.default_rng(seed)
+    simple_noise = simple_noise_sigma * rng.normal(size=n_points)
+
+    duration = max(5, n_points // 20)
+    low = n_points // 4
+    high = n_points - low - duration
+    onset = int(rng.integers(low, high + 1))
+    event_mask = np.zeros(n_points, dtype=bool)
+    event_mask[onset : onset + duration] = True
+
+    fractal_noise = _colored_noise(duration, hurst_exponent, rng)
+    taper = np.sin(np.linspace(0.0, np.pi, duration)) ** 2
+    extreme_injection = np.zeros(n_points, dtype=float)
+    extreme_injection[onset : onset + duration] = extreme_magnitude_in_sigma * fractal_noise * taper
+
+    return AdditiveFractalSeries(
+        values=oscillators + extreme_injection + simple_noise,
+        oscillators=oscillators,
+        extreme_injection=extreme_injection,
+        simple_noise=simple_noise,
+        event_mask=event_mask,
+        event_onset=onset,
+        event_duration=duration,
+        hurst_exponent=hurst_exponent,
+        extreme_magnitude=extreme_magnitude_in_sigma,
+        oscillator_periods=oscillator_periods,
+        oscillator_amplitudes=oscillator_amplitudes,
+    )
+
+
 def generate_kuramoto_time_series(
     n_points: int = 1_500,
     n_channels: int = 12,

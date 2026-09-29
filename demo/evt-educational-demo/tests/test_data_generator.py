@@ -2,7 +2,9 @@ import numpy as np
 import pytest
 
 from evt_demo.data_generator import (
+    generate_additive_fractal_series,
     generate_fractal_extreme_series,
+    generate_fractal_extreme_series_components,
     generate_kuramoto_propagation_recording,
     generate_kuramoto_propagation_series,
     generate_kuramoto_time_series,
@@ -16,6 +18,63 @@ def test_fractal_series_is_reproducible_and_contains_an_event():
     np.testing.assert_array_equal(first_mask, second_mask)
     assert first.shape == first_mask.shape == (200,)
     assert first_mask.sum() == 10
+
+
+def test_fractal_components_reproduce_the_public_function_exactly():
+    values, mask = generate_fractal_extreme_series(300, 0.75, 11)
+    components = generate_fractal_extreme_series_components(300, 0.75, 11)
+    np.testing.assert_allclose(components.values, values)
+    np.testing.assert_array_equal(components.event_mask, mask)
+
+
+def test_fractal_components_are_additive_and_shaped_correctly():
+    components = generate_fractal_extreme_series_components(300, 0.75, 11, extreme_magnitude=8.0)
+    np.testing.assert_allclose(
+        components.stochastic_background + components.extreme_injection, components.values,
+    )
+    np.testing.assert_allclose(components.extreme_magnitude * components.deterministic_shape,
+                               components.extreme_injection)
+    # The deterministic shape is zero outside the event window and peaks at 1 inside it.
+    assert np.all(components.deterministic_shape[~components.event_mask] == 0.0)
+    assert components.deterministic_shape[components.event_mask].max() == pytest.approx(1.0)
+    assert components.deterministic_shape.max() <= 1.0
+
+
+def test_additive_series_is_reproducible():
+    first = generate_additive_fractal_series(300, 0.75, seed=5)
+    second = generate_additive_fractal_series(300, 0.75, seed=5)
+    np.testing.assert_array_equal(first.values, second.values)
+    assert first.event_onset == second.event_onset
+
+
+def test_additive_series_oscillators_are_deterministic_across_seeds():
+    first = generate_additive_fractal_series(300, 0.75, seed=1)
+    second = generate_additive_fractal_series(300, 0.75, seed=2)
+    # The oscillator component has no randomness: identical regardless of seed.
+    np.testing.assert_array_equal(first.oscillators, second.oscillators)
+    # But the noise and event onset/shape do vary with seed.
+    assert not np.allclose(first.simple_noise, second.simple_noise)
+    assert not np.allclose(first.values, second.values)
+
+
+def test_additive_series_components_sum_to_values():
+    series = generate_additive_fractal_series(300, 0.75, seed=5)
+    np.testing.assert_allclose(
+        series.oscillators + series.extreme_injection + series.simple_noise, series.values,
+    )
+    assert series.oscillators.shape == series.extreme_injection.shape == series.simple_noise.shape == (300,)
+    # The extreme injection is confined to the labelled event window.
+    assert np.all(series.extreme_injection[~series.event_mask] == 0.0)
+    assert np.any(series.extreme_injection[series.event_mask] != 0.0)
+
+
+def test_additive_series_rejects_invalid_arguments():
+    with pytest.raises(ValueError, match="oscillator_periods"):
+        generate_additive_fractal_series(oscillator_periods=(1.0, 2.0))
+    with pytest.raises(ValueError, match="simple_noise_sigma"):
+        generate_additive_fractal_series(simple_noise_sigma=-1.0)
+    with pytest.raises(ValueError, match="n_points"):
+        generate_additive_fractal_series(n_points=5)
 
 
 def test_kuramoto_shape_range_and_reproducibility():
