@@ -20,7 +20,7 @@ def test_1d_notebooks_use_the_fractal_series_and_supported_library_api():
     demo_root = Path(__file__).resolve().parents[1]
     notebooks = sorted((demo_root / "notebooks/1-d").glob("*.ipynb"))
 
-    assert [path.name[:2] for path in notebooks] == ["01", "02", "03", "04", "05", "06", "07"]
+    assert [path.name[:2] for path in notebooks] == ["01", "02", "03", "04", "05", "06", "07", "08"]
     for notebook in notebooks:
         document = json.loads(notebook.read_text(encoding="utf-8"))
         source = "\n".join("".join(cell["source"]) for cell in document["cells"])

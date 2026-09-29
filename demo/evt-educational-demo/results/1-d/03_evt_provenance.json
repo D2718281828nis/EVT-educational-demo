@@ -5,20 +5,27 @@
   "observations": 1500,
   "seed": 42,
   "configuration": {
-    "baseline_size": 1125,
+    "baseline_size": 604,
+    "baseline_selection": "labeled_event_start_oracle_assisted",
     "tail_quantile": 0.95,
     "alarm_probability": 0.999,
     "persistence": 3
   },
+  "labeled_event": {
+    "start": 604,
+    "end": 678
+  },
   "detection": {
-    "detected": false,
-    "time_index": null,
-    "alarm_threshold": 9.200682122203109,
+    "detected": true,
+    "time_index": 619,
+    "detected_in_labeled_event": true,
+    "detection_delay_samples": 15,
+    "alarm_threshold": 3.3323876862361708,
     "location": [
-      0.0320633147300135
+      -0.039036224409784
     ],
     "scale": [
-      0.9789915468021143
+      0.9720338251127258
     ]
   },
   "graph_available": false,

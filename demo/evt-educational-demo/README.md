@@ -68,7 +68,13 @@ jupyter lab
 5. `05_specification_robustness.ipynb` — анализ чувствительности EVT-спецификаций;
 6. `06_reproducible_report.ipynb` — отчёт, manifest и provenance;
 7. `07_evaluation_orchestrator.ipynb` — `EvaluationCase`/`EvaluationOrchestrator`
-   на единственном известном случае.
+   на единственном известном случае, включая локализацию начальной точки
+   через `graph_evt_agent.evt.find_events`;
+8. `08_library_utilities.ipynb` — обзор возможностей библиотеки, не
+   задействованных в ноутбуках 1–7: загрузчик `load_csv`/`TimeSeriesInput`,
+   `progress_callback`, встроенные графики `plot_detection`/`plot_evaluation`
+   рядом с собственными, и обработка пропусков `InputConfig(missing=...)` на
+   синтетически повреждённом ряде.
 
 ### `notebooks/n-d/` — многоканальный ряд (`kuramoto_synchronized_series.csv`)
 

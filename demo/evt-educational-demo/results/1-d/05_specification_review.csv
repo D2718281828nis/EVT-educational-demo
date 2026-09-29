@@ -1,4 +1,4 @@
-role,tail_quantile,alarm_probability,persistence,alarm_threshold,post_baseline_exceedances,detected,first_persistent_index,graph_available,ranking_available
-sensitive,0.9,0.995,1,12.971978759754512,0,False,,False,False
-primary,0.95,0.999,3,9.200682122203109,0,False,,False,False
-conservative,0.975,0.9995,5,9.28037439809247,0,False,,False,False
+role,tail_quantile,alarm_probability,persistence,alarm_threshold,post_baseline_exceedances,labeled_event_exceedances,detected,first_persistent_index,detected_in_labeled_event,detection_delay_samples,graph_available,ranking_available
+sensitive,0.9,0.995,1,2.843762254355494,53,49,True,615,True,11,False,False
+primary,0.95,0.999,3,3.3323876862361708,44,43,True,619,True,15,False,False
+conservative,0.975,0.9995,5,3.706227426264438,40,40,True,626,True,22,False,False
