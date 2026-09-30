@@ -176,7 +176,8 @@ def generate_additive_fractal_series(
     1. ``oscillators`` -- a fixed sum of three sine waves at incommensurate
        periods. Deterministic: identical for every ``seed``, no randomness.
     2. ``extreme_injection`` -- zero everywhere except a tapered window
-       starting at a randomly placed ``event_onset``, where it holds
+       starting at ``event_onset`` (2/3 of the series length) and growing
+       exponentially from zero to full magnitude over the window, where it holds
        Hurst/DFA-colored noise (the same spectral shaping
        :func:`generate_fractal_extreme_series` uses for its background,
        here used as the extreme *event* instead). This is the component a
@@ -204,15 +205,15 @@ def generate_additive_fractal_series(
     rng = np.random.default_rng(seed)
     simple_noise = simple_noise_sigma * rng.normal(size=n_points)
 
-    duration = max(5, n_points // 20)
-    low = n_points // 4
-    high = n_points - low - duration
-    onset = int(rng.integers(low, high + 1))
+    duration = 2 * max(5, n_points // 20)
+    onset = min(int(round(2 * n_points / 3)), n_points - duration)
     event_mask = np.zeros(n_points, dtype=bool)
     event_mask[onset : onset + duration] = True
 
     fractal_noise = _colored_noise(duration, hurst_exponent, rng)
-    taper = np.sin(np.linspace(0.0, np.pi, duration)) ** 2
+    # Exponential ramp from exactly 0 up to the maximum magnitude (1.0).
+    growth_rate = 5.0
+    taper = np.expm1(growth_rate * np.linspace(0.0, 1.0, duration)) / np.expm1(growth_rate)
     extreme_injection = np.zeros(n_points, dtype=float)
     extreme_injection[onset : onset + duration] = extreme_magnitude_in_sigma * fractal_noise * taper
 

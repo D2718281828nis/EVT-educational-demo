@@ -8,8 +8,8 @@
   },
   "additive_fractal": {
     "hurst_exponent": 0.75,
-    "event_onset": 672,
-    "event_duration": 75,
+    "event_onset": 1000,
+    "event_duration": 150,
     "extreme_magnitude_in_sigma": 8.0,
     "oscillator_periods": [
       300.0,
