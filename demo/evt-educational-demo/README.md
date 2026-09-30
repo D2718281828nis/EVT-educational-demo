@@ -40,7 +40,7 @@ python -m pip install --no-deps -e demo/evt-educational-demo
 ```
 
 Последняя строка `requirements.txt` устанавливает Graph-EVT-agent напрямую из
-его GitHub-репозитория на актуальном commit `816f975` с API разметки эпизодов,
+его GitHub-репозитория на актуальном commit `465b231` с API разметки эпизодов,
 обучения GNN/GAT (включая temporal-графы для 1-D, `train_1d`) и progress bars
 (`tqdm`). Численное ядро библиотеки детерминировано: ноутбуки
 используют `EVTConfig`, `GraphConfig`, `InputConfig` и `GraphEVTPipeline`. В
@@ -88,7 +88,7 @@ jupyter lab
    рядом с собственными, и обработка пропусков `InputConfig(missing=...)` на
    синтетически повреждённом ряде;
 9. `09_temporal_graph_gnn_gat.ipynb` — `graph_evt_agent.temporal`
-   (commit `816f975`): превращает время в узлы графа, обучает GNN/GAT через
+   (commit `465b231`): превращает время в узлы графа, обучает GNN/GAT через
    `ProcessModelTrainer.train_1d` той же инфраструктурой, что и `n-d/09`
    (группы, метрики, `GraphProcessModel.save`/`.load`), и явно отображает
    предсказанный узел обратно в окно времени на реальном ряде.

@@ -6,7 +6,7 @@ name="evt-educational-demo"
 version="0.3.0"
 description="Educational Graph-EVT research workflow for a one-dimensional extreme series"
 requires-python=">=3.10"
-dependencies=["numpy>=1.24","pandas>=2.0","scipy>=1.10","scikit-learn>=1.3","matplotlib>=3.7","graph-evt-agent[progress] @ git+https://github.com/D2718281828nis/Graph-EVT-agent.git@816f97586f58d709fde3fb63d95d6c462351476a"]
+dependencies=["numpy>=1.24","pandas>=2.0","scipy>=1.10","scikit-learn>=1.3","matplotlib>=3.7","graph-evt-agent[progress] @ git+https://github.com/D2718281828nis/Graph-EVT-agent.git@465b231"]
 [project.optional-dependencies]
 dev=["pytest>=7.0","jupyter>=1.0"]
 [tool.pytest.ini_options]
