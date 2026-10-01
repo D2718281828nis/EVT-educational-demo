@@ -189,6 +189,7 @@ def plot_evt_source_result(
 
     detection = result.detection
     figure, axes = plt.subplots(3, 1, figsize=(12, 10), constrained_layout=True)
+    axes[1].sharex(axes[0])
     axes[0].plot(time, detection.indicator, color="tab:blue", label="EVT indicator")
     axes[0].axhline(
         detection.alarm_threshold,
@@ -220,17 +221,18 @@ def plot_evt_source_result(
 
     start, stop = max(0, event - context), min(len(data), event + context + 1)
     standardized = np.abs(data - detection.location) / np.maximum(detection.scale, 1e-12)
-    image = axes[1].imshow(
-        standardized[start:stop].T,
-        aspect="auto",
-        origin="lower",
-        extent=(start, stop - 1, -0.5, data.shape[1] - 0.5),
-        cmap="magma",
+    # pcolormesh on the real time axis (shared with panel 1) keeps the alarm on
+    # the same vertical line in both panels, for numeric and datetime time axes.
+    image = axes[1].pcolormesh(
+        time[start:stop], np.arange(data.shape[1]), standardized[start:stop].T,
+        shading="nearest", cmap="magma",
     )
-    axes[1].axvline(event, color="cyan", linestyle="--", linewidth=1.5)
+    axes[1].axvline(time[event], color="cyan", linestyle="--", linewidth=1.5)
     axes[1].set(yticks=np.arange(data.shape[1]), yticklabels=names,
                 ylabel="channel", title="2. Standardized response around the alarm")
-    figure.colorbar(image, ax=axes[1], label="absolute robust z-score")
+    axes[0].set_xlim(time[start], time[stop - 1])
+    # One colorbar spanning panels 1-2 keeps their plotting widths identical.
+    figure.colorbar(image, ax=axes[:2], label="absolute robust z-score")
 
     ranking = result.ranking
     if ranking is None:
