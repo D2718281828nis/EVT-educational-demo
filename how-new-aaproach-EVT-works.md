@@ -63,17 +63,55 @@ temperature, or one asset loss.
 
 ### Что можно заключить в 1-D? / What can be concluded in 1-D?
 
-В одном ряду доступны детекция момента, величина экстремума, хвостовая
-вероятность и возвратный уровень. Однако **локализовать источник среди разных
-узлов невозможно**, потому что наблюдается только один канал. Единственный
-наблюдаемый канал можно назвать местом регистрации, но нельзя отличить источник
-от результата распространения из ненаблюдаемой системы. Поэтому стадии
-**графового распространения** и **GAT-локализации** начинаются только при
-$p\ge2$. / A single series supports detection time, extreme magnitude, tail
-probability, and return-level estimation. It cannot localize a source among
-nodes because only one channel is observed. The observed channel is a recording
-location, not necessarily the physical origin. **Graph propagation** and **GAT
-localization** therefore require $p\ge2$.
+Классический одноканальный анализ даёт момент детекции, величину экстремума,
+хвостовую вероятность и возвратный уровень. Среди **каналов** источник
+локализовать невозможно: наблюдается только один канал, и его нельзя отличить
+от результата распространения из ненаблюдаемой системы. / Classical
+single-channel analysis supports detection time, extreme magnitude, tail
+probability, and return level. A source cannot be localized among **channels**:
+only one channel is observed, and it cannot be distinguished from the result of
+propagation from an unobserved system.
+
+### Шаг 2 (1-D). **Временной граф.** / Step 2 (1-D). **Temporal graph.**
+
+Граф и GAT всё же применимы, если **узлами сделать время, а не каналы**. Ряд
+нарезается на перекрывающиеся окна (`window_size`, `stride`); окно — узел,
+рёбра соединяют соседние окна (`neighborhood`) либо задаются весом сходства
+(кросс-DFA, вейвлет-спектр, корреляция AR-инноваций) с прореживанием
+(`threshold`, `knn`, `mst`, `disparity`). / A graph and GAT still apply if the
+**nodes are time windows instead of channels**. The series is cut into
+overlapping windows (`window_size`, `stride`); a window is a node, and edges
+link neighboring windows (`neighborhood`) or carry a similarity weight
+(cross-DFA, wavelet spectrum, AR-innovation correlation) with pruning
+(`threshold`, `knn`, `mst`, `disparity`).
+
+1. Признаки узла: пик, энергия, задержка пика, степень, пик соседей, а также
+   **контекстные признаки смены режима** — энергия AR-инноваций, сдвиг
+   вейвлет-спектра и DFA-показателя на горизонтах вперёд от начала окна. Без
+   контекста модель находит конец события (максимум), а не его начало. / Node
+   features: peak, energy, peak latency, degree, neighbor peak, plus **context
+   features describing a regime change** — AR-innovation energy, wavelet-spectrum
+   shift, and DFA-exponent shift over horizons following the window start.
+   Without context the model finds the end of the event (the maximum) rather
+   than its onset.
+2. Обучать GNN/GAT на **многих независимых размеченных записях** с разными
+   моментами начала события (деление по целым записям). Один ряд — не
+   обучающая выборка. / Train GNN/GAT on **many independent labelled records**
+   with different onset times (split by whole records). A single series is not
+   a training set.
+3. Предсказанный узел **явно отобразить обратно** во временное окно
+   `[window_starts[node], window_starts[node]+window_size)`. / Map the predicted
+   node **explicitly back** to the time window above.
+
+**Что это даёт / What it gives:** локализацию *момента начала* события, а не
+физического места. На синтетических данных демо GNN/GAT находят окно с onset
+примерно в 73–80 % независимых записей (ошибка в пределах одного окна), тогда
+как эвристика «самый высокий пик» попадает внутрь события, но не в onset.
+Контекст смотрит вперёд, поэтому оценка ретроспективная. / This localizes the
+*onset time*, not a physical location. On the demo's synthetic data GNN/GAT hit
+the onset window in roughly 73–80 % of independent records (error within one
+window), while the “highest peak” heuristic lands inside the event but not at
+its onset. Context looks forward, so the estimate is retrospective.
 
 ---
 
@@ -297,7 +335,10 @@ INPUT: one series x[t], or dependent channels X[t, j]
 
 IF there is only one channel:
     report detection time, tail probability/return level, and uncertainty;
-    source localization is not identifiable.
+    channel-source localization is not identifiable.
+    OPTIONAL: build a temporal graph (nodes = time windows), train GNN/GAT on
+    many independent labelled records, and map the predicted node back to the
+    onset window (retrospective).
 ELSE:
     test stochastic stationarity channel by channel.
 
@@ -314,7 +355,34 @@ ELSE:
     return ranked source probabilities and argmax source.
 ```
 
-## 4. Ограничения интерпретации / Interpretation limits
+## 4. Как читать итоговую фигуру / How to read the final figure
+
+Фигура `plot_evt_source_result` ([ноутбук n-d/07](demo/evt-educational-demo/notebooks/n-d/07_detection_and_source_visualization.ipynb))
+состоит из трёх панелей. Панели 1 и 2 **делят одну временную ось**, поэтому
+момент тревоги (вертикальная линия) находится на одном уровне в обеих. / The
+`plot_evt_source_result` figure has three panels. Panels 1 and 2 **share one
+time axis**, so the alarm (vertical line) sits at the same position in both.
+
+1. **EVT detection** — индикатор $I_t$, порог POT/GPD, фон и момент тревоги. /
+   indicator $I_t$, POT/GPD threshold, baseline, and alarm time.
+2. **Standardized response around the alarm** — $|z_{t,j}|$ по каналам в окне
+   `context` вокруг тревоги. / $|z_{t,j}|$ per channel in a `context` window
+   around the alarm.
+3. **Initial-source ranking** — вероятности источника по каналам; красным —
+   оценка $\widehat{s}$. / source probabilities per channel; red marks
+   $\widehat{s}$.
+
+## 5. Соответствие демонстрации / Mapping to the demo
+
+| Этап / Stage | 1-D (`notebooks/1-d/`) | n-D (`notebooks/n-d/`) |
+|---|---|---|
+| EVT-детекция / detection | 03 | 03, 07 |
+| Зависимость, граф / dependence, graph | 02, 09 (временной граф / temporal graph) | 02, 08 |
+| GNN/GAT | 09 | 09 |
+| Устойчивость спецификации / robustness | 05 | 05 |
+| Оценка по истине / truth evaluation | 07 | 10 |
+
+## 6. Ограничения интерпретации / Interpretation limits
 
 - EVT-порог означает статистическую редкость относительно выбранного фона, а не
   автоматически патологию или причинность. / An EVT threshold means statistical
@@ -328,3 +396,11 @@ ELSE:
   клинической разметкой, временем инъекции синтетического события или иным
   внешним критерием. / Ground-truth source labels must come from an independent
   experimental, clinical, synthetic-injection, or other external criterion.
+- Результаты демо получены на синтетических данных и небольшом числе записей
+  (доверительный интервал доли ≈ ±0.15); это иллюстрация, а не benchmark. /
+  Demo results come from synthetic data and a small number of records
+  (proportion confidence interval ≈ ±0.15); they illustrate, not benchmark.
+- Устойчивость к спецификации: в n-D демо `persistence=1` находит верный
+  источник, а `persistence=2` ошибается на соседний канал. / Specification
+  sensitivity: in the n-D demo `persistence=1` finds the true source while
+  `persistence=2` picks a ring neighbor.
