@@ -9,3 +9,4 @@ __pycache__/
 
 # Local VS Code settings may contain machine-specific paths
 .vscode/
+.DS_Store
