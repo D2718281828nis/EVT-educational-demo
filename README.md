@@ -23,6 +23,19 @@ window in a one-dimensional series).
 | [MISTRAL_VSCODE.md](MISTRAL_VSCODE.md) | Настройка LLM-режима в VS Code / LLM mode setup in VS Code |
 | [demo/evt-educational-demo/](demo/evt-educational-demo/) | Код, данные и ноутбуки / Code, data, and notebooks |
 
+## Интерактивная страница / Interactive page
+
+[**Kuramoto Propagation Explorer**](https://d2718281828nis.github.io/EVT-educational-demo/) —
+12 осцилляторов Курамото из `notebooks/n-d/01_dataset_audit.ipynb`: меняйте частоту ω и фазу φ
+каждого узла, момент и параметры шума в `channel_00` и смотрите, как событие распространяется
+по кольцу. / 12 Kuramoto oscillators from the n-D audit notebook: tune each node's ω and φ, the
+onset and parameters of the noise added to `channel_00`, and watch the event propagate.
+
+The page ([site/](site/)) runs the repository's own `data_generator.py` in the browser via
+Pyodide; [.github/workflows/pages.yml](.github/workflows/pages.yml) deploys it
+(Settings → Pages → Source: **GitHub Actions**). Local preview from the repository root:
+`python -m http.server` → <http://localhost:8000/site/>.
+
 ## Подход в трёх шагах / The approach in three steps
 
 1. **EVT-детекция / EVT detection** — робастная стандартизация по фону, POT/GPD-порог, момент устойчивого превышения. / robust baseline standardization, POT/GPD threshold, time of persistent exceedance.

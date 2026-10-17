@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kuramoto Propagation Explorer</title>
+<meta name="description" content="Interactive companion to notebooks/n-d/01_dataset_audit.ipynb: tune 12 coupled Kuramoto oscillators and watch an injected Hurst-coloured noise burst spread from channel_00.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="page-head">
+  <div>
+    <h1>Kuramoto Propagation Explorer</h1>
+    <p class="lede">
+      Twelve coupled Kuramoto oscillators — the dataset from
+      <a href="https://github.com/D2718281828nis/EVT-educational-demo/blob/main/demo/evt-educational-demo/notebooks/n-d/01_dataset_audit.ipynb"><code>n-d/01_dataset_audit.ipynb</code></a>.
+      Change each node's natural frequency ω and initial phase φ, then add a Hurst-coloured noise burst
+      to the source channel and watch it propagate around the ring.
+    </p>
+    <p class="lede ru" lang="ru">
+      12 связанных осцилляторов Курамото из ноутбука аудита. Меняйте частоту и фазу каждого узла,
+      добавьте окрашенный шум в <code>channel_00</code> и смотрите, как событие распространяется по кольцу.
+    </p>
+  </div>
+  <div id="status" class="status" role="status" aria-live="polite">
+    <span class="dot"></span><span id="status-text">Loading Python (Pyodide + numpy)…</span>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="viz">
+    <div class="card ring-card">
+      <div class="card-head">
+        <h2>Oscillator network</h2>
+        <div class="legend" id="ring-legend">
+          <span class="key"><span class="swatch grad"></span>sin θ(t): −1 … +1</span>
+          <span class="key"><span class="swatch halo"></span>injected noise |η(t)|</span>
+          <span class="key"><span class="swatch path"></span>ring path of propagation</span>
+        </div>
+      </div>
+      <canvas id="ring" class="ring" aria-label="Ring of 12 oscillator nodes coloured by their current value"></canvas>
+      <div class="transport">
+        <button id="play" class="btn primary" type="button" aria-label="Play">▶ Play</button>
+        <input id="cursor" type="range" min="0" max="1499" value="0" step="1" aria-label="Time cursor">
+        <span id="cursor-label" class="mono">t = 0.00 s</span>
+        <label class="inline">speed
+          <select id="speed">
+            <option value="1">1×</option><option value="3" selected>3×</option>
+            <option value="8">8×</option><option value="20">20×</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>All 12 channels</h2>
+        <div class="legend">
+          <span class="key"><span class="swatch line s1"></span>observed value</span>
+          <span class="key"><span class="swatch band"></span>channel's event window</span>
+        </div>
+      </div>
+      <p class="hint">Click to move the time cursor. The staircase of shaded windows is the propagation front:
+        each ring hop adds <span id="hint-delay">5</span> samples of delay and multiplies the amplitude by
+        <span id="hint-decay">0.65</span>.</p>
+      <div class="plot-wrap"><canvas id="lanes" class="lanes"></canvas><div class="tip" id="lanes-tip" hidden></div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>All channels on one figure</h2>
+        <div class="legend">
+          <span class="key"><span class="swatch line muted"></span>other channels</span>
+          <span class="key"><span class="swatch line s1"></span>highlighted channel</span>
+          <span class="key"><span class="swatch band"></span>noise interval (first to last channel)</span>
+        </div>
+      </div>
+      <p class="hint">The notebook's overview plot: all 12 series on a shared axis. Pick a channel to highlight it;
+        hover to read the channel nearest the pointer.</p>
+      <div class="chips" id="overlay-chips" role="group" aria-label="Highlighted channel"></div>
+      <div class="plot-wrap"><canvas id="overlay" class="overlay"></canvas><div class="tip" id="overlay-tip" hidden></div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2 id="source-title">Source channel_00: background + noise</h2>
+        <div class="legend">
+          <span class="key"><span class="swatch line muted"></span>Kuramoto background</span>
+          <span class="key"><span class="swatch line s2"></span>injected noise</span>
+          <span class="key"><span class="swatch line s1"></span>observed (sum)</span>
+        </div>
+      </div>
+      <div class="plot-wrap"><canvas id="source" class="detail"></canvas><div class="tip" id="source-tip" hidden></div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Phase coherence r(t)</h2>
+        <span class="stat" id="coherence-stat"></span>
+      </div>
+      <p class="hint">r = |mean(e<sup>iθ</sup>)|. 1 means all twelve oscillators are in phase; near 0 means incoherent.
+        The noise is added to the observed signal only, so it does not change r.</p>
+      <div class="plot-wrap"><canvas id="coherence" class="coh"></canvas><div class="tip" id="coherence-tip" hidden></div></div>
+    </div>
+  </section>
+
+  <aside class="controls">
+    <div class="card">
+      <h2>Presets</h2>
+      <div class="btn-row">
+        <button class="btn" type="button" data-preset="notebook">Notebook dataset</button>
+        <button class="btn" type="button" data-preset="sync">Identical, in phase</button>
+        <button class="btn" type="button" data-preset="strong">Strong coupling</button>
+        <button class="btn" type="button" data-preset="uncoupled">Uncoupled</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Kuramoto model</h2>
+      <p class="eq">dθ<sub>i</sub>/dt = ω<sub>i</sub> + K · mean<sub>j</sub> sin(θ<sub>j</sub> − θ<sub>i</sub>)</p>
+      <div class="field">
+        <label for="coupling">Coupling K <output id="coupling-out"></output></label>
+        <input id="coupling" type="range" min="0" max="5" step="0.05">
+      </div>
+      <div class="field two">
+        <label>Samples <input id="n_points" type="number" min="300" max="4000" step="100"></label>
+        <label>Time step dt <input id="time_step" type="number" min="0.005" max="0.1" step="0.005"></label>
+      </div>
+      <div class="field two">
+        <label>Seed <input id="seed" type="number" min="0" max="99999" step="1"></label>
+        <button id="redraw" class="btn" type="button" title="Use the generator's seeded draws for ω and φ">Re-draw ω, φ from seed</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Nodes</h2><span class="muted small-text">ω rad/s · φ rad</span></div>
+      <div id="nodes" class="nodes"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Additive noise</h2>
+        <label class="switch"><input id="noise-enabled" type="checkbox" checked> on</label>
+      </div>
+      <p class="hint">A burst of Hurst-coloured noise (1/f spectral shaping, sin² taper) from
+        <code>generate_kuramoto_propagation_series</code>.</p>
+      <div id="noise-fields">
+        <div class="field">
+          <label for="source_channel">Source channel</label>
+          <select id="source_channel"></select>
+        </div>
+        <div class="field">
+          <label for="event_onset">Onset (start of noise) <output id="event_onset-out"></output></label>
+          <input id="event_onset" type="range" min="0" step="1">
+          <button id="onset-at-cursor" class="btn small" type="button">Set onset = time cursor</button>
+        </div>
+        <div class="field">
+          <label for="event_duration">Duration, samples <output id="event_duration-out"></output></label>
+          <input id="event_duration" type="range" min="5" max="400" step="1">
+        </div>
+        <div class="field">
+          <label for="event_magnitude_in_sigma">Magnitude, σ <output id="event_magnitude_in_sigma-out"></output></label>
+          <input id="event_magnitude_in_sigma" type="range" min="0" max="10" step="0.1">
+        </div>
+        <div class="field">
+          <label for="hurst_exponent">Hurst exponent H <output id="hurst_exponent-out"></output></label>
+          <input id="hurst_exponent" type="range" min="0.05" max="0.95" step="0.01">
+        </div>
+        <div class="field">
+          <label for="delay_per_hop">Delay per ring hop, samples <output id="delay_per_hop-out"></output></label>
+          <input id="delay_per_hop" type="range" min="0" max="30" step="1">
+        </div>
+        <div class="field">
+          <label for="decay_per_hop">Gain per ring hop <output id="decay_per_hop-out"></output></label>
+          <input id="decay_per_hop" type="range" min="0" max="1" step="0.01">
+        </div>
+      </div>
+    </div>
+
+    <p class="footnote">
+      All numbers are computed in your browser by the repository's
+      <a href="https://github.com/D2718281828nis/EVT-educational-demo/blob/main/demo/evt-educational-demo/src/evt_demo/data_generator.py"><code>data_generator.py</code></a>
+      running in Pyodide. Synthetic data, for teaching only.
+    </p>
+  </aside>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

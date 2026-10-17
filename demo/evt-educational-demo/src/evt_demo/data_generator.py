@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 from numpy.typing import NDArray
@@ -17,6 +17,8 @@ class KuramotoTimeSeries:
     values: NDArray[np.float64]
     coherence: NDArray[np.float64]
     time_step: float
+    natural_frequencies: NDArray[np.float64] | None = field(default=None, repr=False)
+    initial_phases: NDArray[np.float64] | None = field(default=None, repr=False)
 
 
 @dataclass(frozen=True)
@@ -33,6 +35,8 @@ class KuramotoPropagationSeries:
     channel_arrival_delay: NDArray[np.int64]
     event_mask: NDArray[np.bool_]
     channel_event_mask: NDArray[np.bool_]
+    natural_frequencies: NDArray[np.float64] | None = field(default=None, repr=False)
+    initial_phases: NDArray[np.float64] | None = field(default=None, repr=False)
 
 
 def _colored_noise(n_points: int, hurst_exponent: float, rng: np.random.Generator) -> NDArray[np.float64]:
@@ -240,8 +244,16 @@ def generate_kuramoto_time_series(
     *,
     coupling: float = 2.0,
     time_step: float = 0.02,
+    natural_frequencies: NDArray[np.float64] | None = None,
+    initial_phases: NDArray[np.float64] | None = None,
 ) -> KuramotoTimeSeries:
-    """Simulate globally coupled oscillators and return their sine signals."""
+    """Simulate globally coupled oscillators and return their sine signals.
+
+    ``natural_frequencies`` and ``initial_phases`` (length ``n_channels``)
+    override the seeded draws; an explicit ``natural_frequencies`` is used
+    as given, without the source channel's extra ``+0.2`` lead. The seeded
+    draws are made either way, so overriding one leaves the other unchanged.
+    """
     if n_points < 2:
         raise ValueError("n_points must be at least 2")
     if n_channels < 2:
@@ -252,10 +264,13 @@ def generate_kuramoto_time_series(
         raise ValueError("coupling must be non-negative and time_step positive")
 
     rng = np.random.default_rng(seed)
-    phases = rng.uniform(-np.pi, np.pi, n_channels)
-    natural_frequencies = rng.normal(1.0, 0.12, n_channels)
+    drawn_phases = rng.uniform(-np.pi, np.pi, n_channels)
+    drawn_frequencies = rng.normal(1.0, 0.12, n_channels)
     # Give the nominated channel a small, reproducible frequency lead.
-    natural_frequencies[source_channel] += 0.2
+    drawn_frequencies[source_channel] += 0.2
+    phases = _channel_vector(initial_phases, drawn_phases, "initial_phases")
+    natural_frequencies = _channel_vector(natural_frequencies, drawn_frequencies, "natural_frequencies")
+    start_phases = phases.copy()
     values = np.empty((n_points, n_channels), dtype=float)
     coherence = np.empty(n_points, dtype=float)
 
@@ -267,7 +282,22 @@ def generate_kuramoto_time_series(
         interaction = np.sin(phase_difference).mean(axis=1)
         phases += time_step * (natural_frequencies + coupling * interaction)
 
-    return KuramotoTimeSeries(values=values, coherence=coherence, time_step=time_step)
+    return KuramotoTimeSeries(
+        values=values, coherence=coherence, time_step=time_step,
+        natural_frequencies=natural_frequencies, initial_phases=start_phases,
+    )
+
+
+def _channel_vector(
+    override: NDArray[np.float64] | None, drawn: NDArray[np.float64], name: str,
+) -> NDArray[np.float64]:
+    """Return ``drawn``, or a validated float copy of ``override`` in its place."""
+    if override is None:
+        return drawn
+    vector = np.array(override, dtype=float)
+    if vector.shape != drawn.shape or not np.isfinite(vector).all():
+        raise ValueError(f"{name} must hold one finite value per channel")
+    return vector
 
 
 def generate_kuramoto_propagation_series(
@@ -282,6 +312,10 @@ def generate_kuramoto_propagation_series(
     event_magnitude_in_sigma: float = 8.0,
     delay_per_hop: int = 5,
     decay_per_hop: float = 0.65,
+    event_onset: int | None = None,
+    event_duration: int | None = None,
+    natural_frequencies: NDArray[np.float64] | None = None,
+    initial_phases: NDArray[np.float64] | None = None,
 ) -> KuramotoPropagationSeries:
     """Inject one Hurst/DFA-shaped extreme event that starts at ``source_channel``
     and propagates with ring-topology delay and decay to every other channel.
@@ -296,6 +330,12 @@ def generate_kuramoto_propagation_series(
     source) and attenuated (``decay_per_hop`` per hop) copy of that burst, so
     a graph-aware EVT/source-ranking pipeline has a genuine propagation front
     to localize back to ``source_channel``.
+
+    ``event_onset`` (sample index at the source) and ``event_duration``
+    override the seeded onset draw and the default ``n_points // 20`` window;
+    the onset is still drawn, so moving it leaves the burst's shape unchanged.
+    ``natural_frequencies`` and ``initial_phases`` are passed through to
+    :func:`generate_kuramoto_time_series`.
     """
     if n_points < 20:
         raise ValueError("n_points must be at least 20")
@@ -308,6 +348,7 @@ def generate_kuramoto_propagation_series(
 
     base = generate_kuramoto_time_series(
         n_points, n_channels, source_channel, seed, coupling=coupling, time_step=time_step,
+        natural_frequencies=natural_frequencies, initial_phases=initial_phases,
     )
     values = base.values.copy()
 
@@ -315,7 +356,9 @@ def generate_kuramoto_propagation_series(
     # so this event injection never perturbs generate_kuramoto_time_series.
     event_rng = np.random.default_rng(np.random.SeedSequence([seed, n_channels, source_channel]))
 
-    duration = max(5, n_points // 20)
+    duration = max(5, n_points // 20) if event_duration is None else int(event_duration)
+    if duration < 5:
+        raise ValueError("event_duration must be at least 5 samples")
     hops = np.minimum(
         np.abs(np.arange(n_channels) - source_channel),
         n_channels - np.abs(np.arange(n_channels) - source_channel),
@@ -328,6 +371,10 @@ def generate_kuramoto_propagation_series(
     if high <= low:
         raise ValueError("n_points is too small for the requested channel count and delay_per_hop")
     onset = int(event_rng.integers(low, high + 1))
+    if event_onset is not None:
+        if not 0 <= event_onset <= n_points - duration - max_delay:
+            raise ValueError("event_onset must leave room for the event to reach every channel")
+        onset = int(event_onset)
 
     pulse = _colored_noise(duration, hurst_exponent, event_rng)
     taper = np.sin(np.linspace(0.0, np.pi, duration)) ** 2
@@ -351,6 +398,8 @@ def generate_kuramoto_propagation_series(
         channel_arrival_delay=channel_arrival_delay,
         event_mask=channel_event_mask.any(axis=1),
         channel_event_mask=channel_event_mask,
+        natural_frequencies=base.natural_frequencies,
+        initial_phases=base.initial_phases,
     )
 
 

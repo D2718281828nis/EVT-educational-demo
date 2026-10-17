@@ -174,3 +174,37 @@ def test_propagation_recording_rejects_invalid_arguments():
         generate_kuramoto_propagation_recording(gap=10)
     with pytest.raises(ValueError, match="n_channels"):
         generate_kuramoto_propagation_recording(n_channels=1)
+
+
+def test_kuramoto_overrides_replace_the_seeded_draws():
+    default = generate_kuramoto_time_series(100, 4, 0, 3)
+    same = generate_kuramoto_time_series(
+        100, 4, 0, 3,
+        natural_frequencies=default.natural_frequencies, initial_phases=default.initial_phases,
+    )
+    np.testing.assert_array_equal(default.values, same.values)
+    np.testing.assert_allclose(default.values[0], np.sin(default.initial_phases))
+
+    phases = np.zeros(4)
+    locked = generate_kuramoto_time_series(100, 4, 0, 3, natural_frequencies=np.ones(4), initial_phases=phases)
+    # Identical oscillators started in phase stay perfectly synchronized.
+    np.testing.assert_allclose(locked.coherence, 1.0)
+    with pytest.raises(ValueError, match="initial_phases"):
+        generate_kuramoto_time_series(100, 4, initial_phases=np.zeros(3))
+
+
+def test_propagation_event_onset_override_moves_but_keeps_the_burst():
+    default = generate_kuramoto_propagation_series(300, 6, 0, 11)
+    moved = generate_kuramoto_propagation_series(300, 6, 0, 11, event_onset=100)
+    assert moved.event_onset == 100
+    burst = default.values[default.event_onset:default.event_onset + default.event_duration, 0]
+    burst_moved = moved.values[100:100 + moved.event_duration, 0]
+    background = generate_kuramoto_time_series(300, 6, 0, 11).values[:, 0]
+    np.testing.assert_allclose(
+        burst - background[default.event_onset:default.event_onset + default.event_duration],
+        burst_moved - background[100:100 + moved.event_duration],
+    )
+    longer = generate_kuramoto_propagation_series(300, 6, 0, 11, event_onset=50, event_duration=40)
+    assert longer.channel_event_mask[:, 0].sum() == 40
+    with pytest.raises(ValueError, match="event_onset"):
+        generate_kuramoto_propagation_series(300, 6, 0, 11, event_onset=290)
