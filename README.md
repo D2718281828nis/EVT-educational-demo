@@ -23,16 +23,28 @@ window in a one-dimensional series).
 | [MISTRAL_VSCODE.md](MISTRAL_VSCODE.md) | Настройка LLM-режима в VS Code / LLM mode setup in VS Code |
 | [demo/evt-educational-demo/](demo/evt-educational-demo/) | Код, данные и ноутбуки / Code, data, and notebooks |
 
-## Интерактивная страница / Interactive page
+## Интерактивные страницы / Interactive pages
 
-[**Kuramoto Propagation Explorer**](https://d2718281828nis.github.io/EVT-educational-demo/) —
+[**Graph-EVT: from extreme to source**](https://d2718281828nis.github.io/EVT-educational-demo/) —
+двуязычный (RU/EN) интерактивный гид по главной идее репозитория: аддитивный вход
+(периодика + стохастика + фрактальный шум Хёрста), случаи 1-D и n-D, EVT-детекция и начальный
+источник, конвейер агента, как работают GNN и GAT, оркестрация агентов, конкурирующие графы и
+временной граф для 1-D. Все параметры — слайдеры, всё считается в браузере. / A bilingual (RU/EN)
+interactive guide to the main idea: the additive input (periodic + stochastic + Hurst fractal noise),
+1-D vs n-D cases, EVT detection and the initial source, the agent pipeline, how GNN and GAT work,
+agent orchestration, competing graph hypotheses and the 1-D temporal graph. Every parameter is a
+slider; everything is computed in the browser.
+
+[**Kuramoto Propagation Explorer**](https://d2718281828nis.github.io/EVT-educational-demo/kuramoto/) —
 12 осцилляторов Курамото из `notebooks/n-d/01_dataset_audit.ipynb`: меняйте частоту ω и фазу φ
 каждого узла, момент и параметры шума в `channel_00` и смотрите, как событие распространяется
 по кольцу. / 12 Kuramoto oscillators from the n-D audit notebook: tune each node's ω and φ, the
 onset and parameters of the noise added to `channel_00`, and watch the event propagate.
 
-The page ([site/](site/)) runs the repository's own `data_generator.py` in the browser via
-Pyodide; [.github/workflows/pages.yml](.github/workflows/pages.yml) deploys it
+The guide ([site/](site/)) uses JavaScript ports of `graph_evt_agent` and `data_generator.py`
+([site/js/core.js](site/js/core.js)); only the random generator differs from numpy. The Explorer
+([site/kuramoto/](site/kuramoto/)) runs the repository's own `data_generator.py` via Pyodide.
+[.github/workflows/pages.yml](.github/workflows/pages.yml) deploys both
 (Settings → Pages → Source: **GitHub Actions**). Local preview from the repository root:
 `python -m http.server` → <http://localhost:8000/site/>.
 

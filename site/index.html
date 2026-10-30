@@ -1,0 +1,815 @@
+<!doctype html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Graph-EVT: from extreme to source</title>
+<meta name="description" content="Interactive bilingual guide to the EVT-educational-demo repository: additive Hurst signals, 1-D vs n-D cases, POT/GPD detection, source localization, the Graph-EVT agent pipeline, GNN vs GAT and agent orchestration — all computed live in the browser.">
+<link rel="stylesheet" href="css/site.css">
+<script>
+  // Language and theme before first paint: ?lang= > saved choice > browser language.
+  (function () {
+    var lang = null, theme = null;
+    try { lang = new URLSearchParams(location.search).get("lang"); } catch (e) {}
+    try { lang = lang || localStorage.getItem("evt-lang"); theme = localStorage.getItem("evt-theme"); } catch (e) {}
+    if (lang !== "ru" && lang !== "en") lang = (navigator.language || "").toLowerCase().indexOf("ru") === 0 ? "ru" : "en";
+    document.documentElement.setAttribute("data-lang", lang);
+    document.documentElement.setAttribute("lang", lang);
+    if (theme === "light" || theme === "dark") document.documentElement.setAttribute("data-theme", theme);
+  })();
+</script>
+</head>
+<body>
+
+<nav class="topbar" aria-label="Sections">
+  <a class="brand" href="#top">Graph-EVT</a>
+  <div class="toc">
+    <a href="#s1"><b>1</b><span lang="en">Signal</span><span lang="ru">Сигнал</span></a>
+    <a href="#s2"><b>2</b>1-D / n-D</a>
+    <a href="#s3"><b>3</b>EVT</a>
+    <a href="#s4"><b>4</b><span lang="en">Pipeline</span><span lang="ru">Конвейер</span></a>
+    <a href="#s5"><b>5</b>GNN / GAT</a>
+    <a href="#s6"><b>6</b><span lang="en">Orchestration</span><span lang="ru">Оркестрация</span></a>
+    <a href="#s7"><b>7</b><span lang="en">Graphs</span><span lang="ru">Графы</span></a>
+    <a href="#s8"><b>8</b><span lang="en">Temporal</span><span lang="ru">Временной</span></a>
+  </div>
+  <div class="nav-tools">
+    <a class="explorer-link" href="kuramoto/"><span lang="en">Kuramoto Explorer</span><span lang="ru">Kuramoto Explorer</span> ↗</a>
+    <div class="seg small" role="group" aria-label="Language / Язык">
+      <button type="button" data-set-lang="en">EN</button><button type="button" data-set-lang="ru">RU</button>
+    </div>
+    <button type="button" class="icon-btn" id="theme-toggle" aria-label="Theme"><span aria-hidden="true">◐</span></button>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <p class="eyebrow"><span lang="en">EVT-educational-demo · interactive guide</span><span lang="ru">EVT-educational-demo · интерактивный гид</span></p>
+  <h1>
+    <span lang="en">From an extreme value to its source</span>
+    <span lang="ru">От экстремального значения к его источнику</span>
+  </h1>
+  <p class="lede" lang="en">
+    <strong>EVT</strong> answers <em>when</em> an observation became extreme. A <strong>dependence graph</strong> describes
+    the plausible propagation paths. <strong>GNN/GAT</strong> answer <em>where</em> the event started.
+    Everything below runs live in your browser — move any slider and every number is recomputed.
+  </p>
+  <p class="lede" lang="ru">
+    <strong>EVT</strong> отвечает на вопрос, <em>когда</em> наблюдение стало экстремальным. <strong>Граф зависимостей</strong>
+    описывает допустимые пути распространения. <strong>GNN/GAT</strong> отвечают, <em>где</em> событие началось.
+    Всё ниже считается прямо в браузере — двигайте любой слайдер, и все числа пересчитываются.
+  </p>
+  <ol class="flow-strip">
+    <li><a href="#s1"><span class="k">x(t)</span><span lang="en">additive input</span><span lang="ru">аддитивный вход</span></a></li>
+    <li><a href="#s2"><span class="k">1-D · n-D</span><span lang="en">what is a node?</span><span lang="ru">что такое узел?</span></a></li>
+    <li><a href="#s3"><span class="k">t<sub>EVT</sub></span><span lang="en">POT/GPD alarm</span><span lang="ru">тревога POT/GPD</span></a></li>
+    <li><a href="#s4"><span class="k">plan</span><span lang="en">agent pipeline</span><span lang="ru">конвейер агента</span></a></li>
+    <li><a href="#s5"><span class="k">ŝ</span><span lang="en">GNN / GAT source</span><span lang="ru">источник GNN / GAT</span></a></li>
+    <li><a href="#s6"><span class="k">team</span><span lang="en">orchestration</span><span lang="ru">оркестрация</span></a></li>
+  </ol>
+  <p class="disclaimer">
+    <span lang="en">All data are synthetic. The algorithms are JavaScript ports of
+      <a href="https://github.com/D2718281828nis/Graph-EVT-agent">Graph-EVT-agent</a> (commit 465b231) and the repository's
+      <code>data_generator.py</code>; only the random generator differs from numpy, so seeds do not reproduce the notebooks sample by sample.
+      Not for engineering, financial or clinical decisions.</span>
+    <span lang="ru">Все данные синтетические. Алгоритмы — JavaScript-порты
+      <a href="https://github.com/D2718281828nis/Graph-EVT-agent">Graph-EVT-agent</a> (commit 465b231) и
+      <code>data_generator.py</code> репозитория; отличается только генератор случайных чисел (не numpy), поэтому seed не воспроизводит ноутбуки
+      поотсчётно. Не для инженерных, финансовых или клинических решений.</span>
+  </p>
+</header>
+
+<main>
+
+<!-- ============================================================== 1 SIGNAL -->
+<section class="sec" id="s1" data-section="s1">
+  <header class="sec-head">
+    <span class="num">1</span>
+    <div>
+      <h2><span lang="en">Additive input: periodic + stochastic + fractal (Hurst)</span><span lang="ru">Аддитивный вход: периодика + стохастика + фрактал (Хёрст)</span></h2>
+      <p lang="en">The repository's 1-D dataset (<code>additive_fractal_series.csv</code>, notebook <code>1-d/01</code>) is literally a sum of three
+        separable terms. Only the third one is the extreme event an EVT detector is meant to flag.</p>
+      <p lang="ru">Одномерный набор репозитория (<code>additive_fractal_series.csv</code>, ноутбук <code>1-d/01</code>) — буквально сумма трёх
+        разделимых слагаемых. Экстремальное событие, которое должен поймать EVT-детектор, — только третье.</p>
+    </div>
+  </header>
+  <div class="eq-block">
+    x(t) = <span class="term t-periodic">Σ<sub>k=1..3</sub> A<sub>k</sub> sin(2πt/T<sub>k</sub> + φ<sub>k</sub>)</span>
+    + <span class="term t-noise">σ·ε<sub>t</sub></span>
+    + <span class="term t-fractal">M · g(t − t<sub>0</sub>) · η<sup>H</sup>(t − t<sub>0</sub>)</span>
+  </div>
+  <div class="sec-grid">
+    <div class="main">
+      <div class="card">
+        <div class="card-head">
+          <h3><span lang="en">The three components and their sum</span><span lang="ru">Три слагаемых и их сумма</span></h3>
+          <div class="legend">
+            <span class="key"><span class="swatch line" style="background:var(--series-3)"></span><span lang="en">periodic</span><span lang="ru">периодика</span></span>
+            <span class="key"><span class="swatch line" style="background:var(--muted)"></span><span lang="en">stochastic</span><span lang="ru">стохастика</span></span>
+            <span class="key"><span class="swatch line" style="background:var(--series-2)"></span><span lang="en">fractal burst</span><span lang="ru">фрактальный всплеск</span></span>
+            <span class="key"><span class="swatch line" style="background:var(--series-1)"></span>x(t)</span>
+          </div>
+        </div>
+        <p class="hint"><span lang="en">Hover any panel: the crosshair is shared, the tooltip lists all four values at that sample.</span>
+          <span lang="ru">Наведите курсор: перекрестие общее для всех панелей, подсказка показывает все четыре значения в этом отсчёте.</span></p>
+        <div class="panel-label"><span lang="en">Periodic — three incommensurate sines, deterministic</span><span lang="ru">Периодика — три несоизмеримые синусоиды, детерминированно</span></div>
+        <div id="p1-periodic"></div>
+        <div class="panel-label"><span lang="en">Stochastic — i.i.d. Gaussian measurement noise</span><span lang="ru">Стохастика — i.i.d. гауссовский шум измерений</span></div>
+        <div id="p1-noise"></div>
+        <div class="panel-label"><span lang="en">Fractal — Hurst-coloured burst switched on at t₀ (the extreme event)</span><span lang="ru">Фрактал — окрашенный по Хёрсту всплеск с момента t₀ (экстремальное событие)</span></div>
+        <div id="p1-fractal"></div>
+        <div class="panel-label strong"><span lang="en">Observed sum x(t)</span><span lang="ru">Наблюдаемая сумма x(t)</span></div>
+        <div id="p1-sum"></div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h3><span lang="en">What the Hurst exponent H does</span><span lang="ru">Что делает показатель Хёрста H</span></h3>
+          <span class="stat" id="s1-hurst-stat"></span>
+        </div>
+        <p class="hint" lang="en">η<sup>H</sup> is built in the Fourier domain with amplitude ∝ f<sup>−(H−½)</sup>, so its power spectrum falls as
+          f<sup>−(2H−1)</sup>. H &lt; 0.5 is anti-persistent (rough), H = 0.5 is white, H &gt; 0.5 is persistent (long memory, smooth swings).
+          DFA recovers H as the slope of the fluctuation function F(s) ∝ s<sup>α</sup>. Both panels use a long 2048-sample draw of the same noise.</p>
+        <p class="hint" lang="ru">η<sup>H</sup> строится в частотной области с амплитудой ∝ f<sup>−(H−½)</sup>, поэтому спектр мощности спадает как
+          f<sup>−(2H−1)</sup>. H &lt; 0.5 — антиперсистентный (шероховатый) шум, H = 0.5 — белый, H &gt; 0.5 — персистентный (длинная память).
+          DFA восстанавливает H как наклон флуктуационной функции F(s) ∝ s<sup>α</sup>. Обе панели — длинная реализация того же шума (2048 отсчётов).</p>
+        <div class="two">
+          <div>
+            <div class="panel-label"><span lang="en">Power spectrum (log-log)</span><span lang="ru">Спектр мощности (log-log)</span></div>
+            <div id="p1-psd"></div>
+          </div>
+          <div>
+            <div class="panel-label"><span lang="en">DFA fluctuation F(s) (log-log)</span><span lang="ru">DFA-флуктуация F(s) (log-log)</span></div>
+            <div id="p1-dfa"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <aside class="side">
+      <div class="card controls">
+        <div class="ctl-head"><h3><span lang="en">Periodic</span><span lang="ru">Периодика</span></h3><div class="ctl" data-k="sig.use.periodic" data-type="toggle"></div></div>
+        <div class="ctl-row3">
+          <div class="ctl" data-k="sig.periods.0" data-min="10" data-max="600" data-step="1" data-en="T₁" data-ru="T₁"></div>
+          <div class="ctl" data-k="sig.periods.1" data-min="10" data-max="600" data-step="1" data-en="T₂" data-ru="T₂"></div>
+          <div class="ctl" data-k="sig.periods.2" data-min="10" data-max="600" data-step="1" data-en="T₃" data-ru="T₃"></div>
+        </div>
+        <div class="ctl-row3">
+          <div class="ctl" data-k="sig.amplitudes.0" data-min="0" data-max="2" data-step="0.05" data-en="A₁" data-ru="A₁"></div>
+          <div class="ctl" data-k="sig.amplitudes.1" data-min="0" data-max="2" data-step="0.05" data-en="A₂" data-ru="A₂"></div>
+          <div class="ctl" data-k="sig.amplitudes.2" data-min="0" data-max="2" data-step="0.05" data-en="A₃" data-ru="A₃"></div>
+        </div>
+        <div class="ctl-head"><h3><span lang="en">Stochastic</span><span lang="ru">Стохастика</span></h3><div class="ctl" data-k="sig.use.stochastic" data-type="toggle"></div></div>
+        <div class="ctl" data-k="sig.sigma" data-min="0" data-max="1.5" data-step="0.01" data-en="Noise σ" data-ru="Шум σ"></div>
+        <div class="ctl-head"><h3><span lang="en">Fractal (Hurst) burst</span><span lang="ru">Фрактальный всплеск (Хёрст)</span></h3><div class="ctl" data-k="sig.use.fractal" data-type="toggle"></div></div>
+        <div class="ctl" data-k="sig.hurst" data-min="0.05" data-max="0.95" data-step="0.01" data-en="Hurst exponent H" data-ru="Показатель Хёрста H"></div>
+        <div class="ctl" data-k="sig.magnitude" data-min="0" data-max="15" data-step="0.1" data-en="Magnitude M, σ units" data-ru="Амплитуда M, в σ"></div>
+        <div class="ctl" data-k="sig.onset" data-min="0" data-max="1400" data-step="1" data-en="Onset t₀" data-ru="Начало t₀"></div>
+        <div class="ctl" data-k="sig.duration" data-min="10" data-max="400" data-step="1" data-en="Duration, samples" data-ru="Длительность, отсчёты"></div>
+        <div class="ctl" data-k="sig.envelope" data-type="seg" data-options="exp:exp ramp|exp:экспонента;sin2:sin² taper|sin2:sin²-окно" data-en="Envelope g" data-ru="Огибающая g"></div>
+        <div class="ctl-head"><h3><span lang="en">Sampling</span><span lang="ru">Дискретизация</span></h3></div>
+        <div class="ctl-row2">
+          <div class="ctl" data-k="sig.n" data-type="number" data-min="500" data-max="3000" data-step="100" data-en="Length n" data-ru="Длина n"></div>
+          <div class="ctl" data-k="sig.seed" data-type="number" data-min="0" data-max="99999" data-step="1" data-en="Seed" data-ru="Seed"></div>
+        </div>
+        <button type="button" class="btn" data-reset="sig"><span lang="en">Reset to notebook values</span><span lang="ru">Сбросить к значениям ноутбука</span></button>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ============================================================== 2 CASES -->
+<section class="sec" id="s2" data-section="s2">
+  <header class="sec-head">
+    <span class="num">2</span>
+    <div>
+      <h2><span lang="en">Two cases: one series (1-D) or dependent channels (n-D)</span><span lang="ru">Два случая: один ряд (1-D) или зависимые каналы (n-D)</span></h2>
+      <p lang="en">The question "where did it start?" only has a channel answer when several channels are observed. In 1-D the same machinery still works
+        if the nodes are <em>time windows</em> instead of channels (section 8).</p>
+      <p lang="ru">Вопрос «где началось?» имеет ответ в виде канала, только если наблюдаются несколько каналов. В 1-D та же машинерия работает,
+        если узлами сделать <em>временные окна</em>, а не каналы (раздел 8).</p>
+    </div>
+  </header>
+  <div class="table-wrap">
+    <table class="compare">
+      <thead><tr><th></th><th>1-D <span class="muted">notebooks/1-d</span></th><th>n-D <span class="muted">notebooks/n-d</span></th></tr></thead>
+      <tbody>
+        <tr><th><span lang="en">Observed</span><span lang="ru">Наблюдается</span></th>
+          <td><span lang="en">one series x<sub>t</sub> (electrode, engine, asset)</span><span lang="ru">один ряд x<sub>t</sub> (электрод, двигатель, актив)</span></td>
+          <td><span lang="en">p channels X<sub>t,j</sub> (e.g. stereo-EEG contacts)</span><span lang="ru">p каналов X<sub>t,j</sub> (напр. контакты стерео-ЭЭГ)</span></td></tr>
+        <tr><th><span lang="en">EVT indicator</span><span lang="ru">EVT-индикатор</span></th>
+          <td>z<sub>t</sub> = |x<sub>t</sub> − m| / s</td>
+          <td>I<sub>t</sub> = mean TopK<sub>j</sub> z<sub>t,j</sub></td></tr>
+        <tr><th><span lang="en">Graph node</span><span lang="ru">Узел графа</span></th>
+          <td><span lang="en">a time window (optional temporal graph)</span><span lang="ru">временное окно (опциональный временной граф)</span></td>
+          <td><span lang="en">a channel; edges from the baseline only</span><span lang="ru">канал; рёбра — только по фону</span></td></tr>
+        <tr><th><span lang="en">Source among channels?</span><span lang="ru">Источник среди каналов?</span></th>
+          <td><span class="badge serious">✕ <span lang="en">not identifiable</span><span lang="ru">не идентифицируем</span></span></td>
+          <td><span class="badge good">✓ <span lang="en">ranked: ŝ = argmax P</span><span lang="ru">ранжируется: ŝ = argmax P</span></span></td></tr>
+        <tr><th><span lang="en">GNN/GAT target</span><span lang="ru">Цель GNN/GAT</span></th>
+          <td><span lang="en">the onset window (retrospective)</span><span lang="ru">окно начала события (ретроспективно)</span></td>
+          <td><span lang="en">the initial source channel</span><span lang="ru">начальный канал-источник</span></td></tr>
+        <tr><th><span lang="en">Planner stop reason</span><span lang="ru">Причина остановки планировщика</span></th>
+          <td><code>single_channel_cannot_localize</code></td>
+          <td><code>None</code> <span class="muted">(<span lang="en">full route</span><span lang="ru">полный маршрут</span>)</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="case-switch">
+    <span class="muted"><span lang="en">Active case for sections 3, 4 and 6:</span><span lang="ru">Активный случай для разделов 3, 4 и 6:</span></span>
+    <div class="ctl" data-k="case" data-type="seg" data-options="1d:1-D series|1d:1-D ряд;nd:n-D channels|nd:n-D каналы"></div>
+  </div>
+  <div class="sec-grid" data-case-view="1d">
+    <div class="main">
+      <div class="card">
+        <div class="card-head">
+          <h3><span lang="en">1-D: the series from section 1</span><span lang="ru">1-D: ряд из раздела 1</span></h3>
+          <div class="legend">
+            <span class="key"><span class="swatch line" style="background:var(--series-1)"></span>x(t)</span>
+            <span class="key"><span class="swatch band"></span><span lang="en">true event window</span><span lang="ru">истинное окно события</span></span>
+          </div>
+        </div>
+        <div id="p2-1d"></div>
+        <div class="note-grid">
+          <div class="note good"><b><span lang="en">EVT can report</span><span lang="ru">EVT может сообщить</span></b>
+            <span lang="en">detection time t<sub>EVT</sub>, the extreme magnitude, tail probability and return level.</span>
+            <span lang="ru">момент детекции t<sub>EVT</sub>, величину экстремума, хвостовую вероятность и возвратный уровень.</span></div>
+          <div class="note serious"><b><span lang="en">EVT cannot report</span><span lang="ru">EVT не может сообщить</span></b>
+            <span lang="en">which channel is the source: one channel cannot be told apart from propagation out of an unobserved system.</span>
+            <span lang="ru">какой канал — источник: один канал нельзя отличить от распространения из ненаблюдаемой системы.</span></div>
+          <div class="note"><b><span lang="en">Way out</span><span lang="ru">Выход</span></b>
+            <span lang="en">cut the series into windows, make each window a node, and train GNN/GAT to find the <em>onset window</em> → <a href="#s8">section 8</a>.</span>
+            <span lang="ru">нарезать ряд на окна, сделать окно узлом и обучить GNN/GAT находить <em>окно начала</em> → <a href="#s8">раздел 8</a>.</span></div>
+        </div>
+      </div>
+    </div>
+    <aside class="side">
+      <div class="card controls">
+        <p class="hint"><span lang="en">The 1-D series is controlled in <a href="#s1">section 1</a>.</span><span lang="ru">Одномерный ряд настраивается в <a href="#s1">разделе 1</a>.</span></p>
+      </div>
+    </aside>
+  </div>
+  <div class="sec-grid" data-case-view="nd">
+    <div class="main">
+      <div class="card">
+        <div class="card-head">
+          <h3><span lang="en">n-D: Kuramoto ring with one propagating burst</span><span lang="ru">n-D: кольцо Курамото с одним распространяющимся всплеском</span></h3>
+          <a class="small-link" href="kuramoto/"><span lang="en">Per-node ω, φ and animation → Kuramoto Explorer</span><span lang="ru">ω, φ каждого узла и анимация → Kuramoto Explorer</span></a>
+        </div>
+        <p class="eq-inline">dθ<sub>i</sub>/dt = ω<sub>i</sub> + K · mean<sub>j</sub> sin(θ<sub>j</sub> − θ<sub>i</sub>),
+          X<sub>t,i</sub> = sin θ<sub>i</sub>(t) + γ<sup>hops(i)</sup> · burst(t − t<sub>0</sub> − hops(i)·Δ)</p>
+        <div class="two ring-lanes">
+          <div>
+            <div id="p2-ring"></div>
+            <div class="legend center">
+              <span class="key"><span class="swatch dot" style="background:var(--seq-hi)"></span><span lang="en">fill = burst gain γ<sup>hops</sup></span><span lang="ru">заливка = усиление γ<sup>hops</sup></span></span>
+              <span class="key"><span class="swatch ring"></span><span lang="en">source</span><span lang="ru">источник</span></span>
+            </div>
+          </div>
+          <div>
+            <div id="p2-lanes"></div>
+          </div>
+        </div>
+        <p class="hint"><span lang="en">Right: every channel on its own lane; shaded boxes are each channel's event window. The staircase is the propagation front:
+          each ring hop adds Δ samples of delay and multiplies the amplitude by γ. Badges on the ring show the arrival delay.</span>
+          <span lang="ru">Справа: каждый канал на своей дорожке; закрашены окна события каждого канала. «Лестница» — фронт распространения:
+          каждый хоп по кольцу добавляет Δ отсчётов задержки и умножает амплитуду на γ. Подписи на кольце — задержка прихода.</span></p>
+      </div>
+    </div>
+    <aside class="side">
+      <div class="card controls">
+        <div class="ctl-head"><h3><span lang="en">Oscillators</span><span lang="ru">Осцилляторы</span></h3></div>
+        <div class="ctl" data-k="nd.p" data-min="4" data-max="16" data-step="1" data-en="Channels p" data-ru="Каналы p"></div>
+        <div class="ctl" data-k="nd.coupling" data-min="0" data-max="4" data-step="0.05" data-en="Coupling K" data-ru="Связь K"></div>
+        <div class="ctl-head"><h3><span lang="en">Injected burst</span><span lang="ru">Впрыснутый всплеск</span></h3></div>
+        <div class="ctl" data-k="nd.source" data-min="0" data-max="15" data-step="1" data-en="Source channel" data-ru="Канал-источник"></div>
+        <div class="ctl" data-k="nd.magnitude" data-min="0" data-max="6" data-step="0.1" data-en="Magnitude, σ" data-ru="Амплитуда, σ"></div>
+        <div class="ctl" data-k="nd.hurst" data-min="0.05" data-max="0.95" data-step="0.01" data-en="Hurst exponent H" data-ru="Показатель Хёрста H"></div>
+        <div class="ctl" data-k="nd.delay" data-min="0" data-max="20" data-step="1" data-en="Delay per hop Δ, samples" data-ru="Задержка на хоп Δ, отсчёты"></div>
+        <div class="ctl" data-k="nd.decay" data-min="0" data-max="1" data-step="0.01" data-en="Gain per hop γ" data-ru="Усиление на хоп γ"></div>
+        <div class="ctl" data-k="nd.onset" data-min="100" data-max="1300" data-step="1" data-en="Onset t₀ at the source" data-ru="Начало t₀ на источнике"></div>
+        <div class="ctl" data-k="nd.duration" data-min="10" data-max="200" data-step="1" data-en="Duration, samples" data-ru="Длительность, отсчёты"></div>
+        <div class="ctl-row2">
+          <div class="ctl" data-k="nd.seed" data-type="number" data-min="0" data-max="99999" data-step="1" data-en="Seed" data-ru="Seed"></div>
+          <div class="ctl" data-k="nd.n" data-type="number" data-min="600" data-max="3000" data-step="100" data-en="Length n" data-ru="Длина n"></div>
+        </div>
+        <button type="button" class="btn" data-reset="nd"><span lang="en">Reset to notebook values</span><span lang="ru">Сбросить к значениям ноутбука</span></button>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ============================================================== 3 EVT -->
+<section class="sec" id="s3" data-section="s3">
+  <header class="sec-head">
+    <span class="num">3</span>
+    <div>
+      <h2><span lang="en">EVT detection and the initial source</span><span lang="ru">EVT-детекция и начальный источник</span></h2>
+      <p lang="en">Leakage-safe peaks-over-threshold: every statistic is estimated on the baseline only, then frozen. The ranking step uses only the
+        12 samples after the alarm and the baseline graph.</p>
+      <p lang="ru">Peaks-over-threshold без утечки: все статистики оцениваются только по фону и затем фиксируются. Ранжирование использует лишь
+        12 отсчётов после тревоги и граф, построенный по фону.</p>
+    </div>
+  </header>
+  <ol class="steps">
+    <li><b>z<sub>t,j</sub> = |X<sub>t,j</sub> − m<sub>j</sub>| / max(1.4826·MAD<sub>j</sub>, ε)</b>
+      <span lang="en">robust standardization by baseline median and MAD</span><span lang="ru">робастная стандартизация медианой и MAD фона</span></li>
+    <li><b>I<sub>t</sub> = mean TopK<sub>j</sub> z<sub>t,j</sub></b>
+      <span lang="en">several strongest channels, not only the maximum</span><span lang="ru">несколько сильнейших каналов, а не только максимум</span></li>
+    <li><b>q<sub>EVT</sub> = u + GPD<sup>−1</sup>((p − q)/(1 − q))</b>
+      <span lang="en">u = q-quantile of baseline I<sub>t</sub>; GPD fitted to the excesses over u</span><span lang="ru">u — q-квантиль фонового I<sub>t</sub>; GPD подгоняется к превышениям над u</span></li>
+    <li><b>t<sub>EVT</sub> = min{t ≥ B : I<sub>t…t+r−1</sub> &gt; q<sub>EVT</sub>}</b>
+      <span lang="en">first persistent exceedance after the baseline B</span><span lang="ru">первое устойчивое превышение после фона B</span></li>
+    <li><b>P(j) = softmax(peak + √energy + 0.15·neighbor − 0.5·latency)</b>
+      <span lang="en">transparent source ranking on the baseline graph (n-D)</span><span lang="ru">прозрачное ранжирование источника по фоновому графу (n-D)</span></li>
+  </ol>
+  <div class="case-switch">
+    <span class="muted"><span lang="en">Case:</span><span lang="ru">Случай:</span></span>
+    <div class="ctl" data-k="case" data-type="seg" data-options="1d:1-D series|1d:1-D ряд;nd:n-D channels|nd:n-D каналы"></div>
+  </div>
+  <div class="tiles" id="s3-tiles"></div>
+  <div class="sec-grid">
+    <div class="main">
+      <div class="card">
+        <div class="card-head">
+          <h3><span lang="en">EVT decision on the indicator</span><span lang="ru">Решение EVT по индикатору</span></h3>
+          <div class="legend">
+            <span class="key"><span class="swatch line" style="background:var(--series-1)"></span><span lang="en">indicator</span><span lang="ru">индикатор</span></span>
+            <span class="key"><span class="swatch band neutral"></span><span lang="en">baseline</span><span lang="ru">фон</span></span>
+            <span class="key"><span class="swatch line dashed" style="border-color:var(--muted)"></span>u</span>
+            <span class="key"><span class="swatch line" style="background:var(--critical)"></span>q<sub>EVT</sub></span>
+            <span class="key"><span class="swatch line dashed" style="border-color:var(--ink)"></span><span lang="en">true onset</span><span lang="ru">истинное начало</span></span>
+          </div>
+        </div>
+        <div id="p3-indicator"></div>
+      </div>
+      <div class="two">
+        <div class="card">
+          <div class="card-head"><h3><span lang="en">Tail fit: excesses over u</span><span lang="ru">Подгонка хвоста: превышения над u</span></h3></div>
+          <div id="p3-gpd"></div>
+          <p class="hint" id="s3-gpd-text"></p>
+        </div>
+        <div class="card" data-only="nd">
+          <div class="card-head"><h3><span lang="en">Initial-source ranking</span><span lang="ru">Ранжирование начального источника</span></h3></div>
+          <div id="p3-rank"></div>
+          <p class="hint"><span lang="en">ŝ marks the argmax, ★ the true source. Probabilities are a softmax of a fixed score — not calibrated probabilities of a physical cause.</span>
+            <span lang="ru">ŝ — argmax, ★ — истинный источник. Вероятности — softmax фиксированного скора, а не калиброванная вероятность физической причины.</span></p>
+        </div>
+        <div class="card" data-only="1d">
+          <div class="card-head"><h3><span lang="en">Source ranking</span><span lang="ru">Ранжирование источника</span></h3></div>
+          <div class="stop-card">
+            <code>stop_reason = "single_channel_cannot_localize"</code>
+            <p lang="en">With one channel the planner stops after detection: there is nothing to rank among. The onset <em>window</em> can still be
+              localized by a temporal graph — <a href="#s8">section 8</a>.</p>
+            <p lang="ru">С одним каналом планировщик останавливается после детекции: ранжировать не среди чего. <em>Окно</em> начала всё же можно
+              локализовать временным графом — <a href="#s8">раздел 8</a>.</p>
+          </div>
+        </div>
+      </div>
+      <div class="card" data-only="nd">
+        <div class="card-head">
+          <h3><span lang="en">Standardized response |z<sub>t,j</sub>| around the alarm</span><span lang="ru">Стандартизованный отклик |z<sub>t,j</sub>| вокруг тревоги</span></h3>
+          <div class="legend"><span class="key"><span class="swatch grad-seq"></span><span id="s3-heat-scale">|z|</span></span><span class="key"><span class="swatch line" style="background:var(--critical)"></span>t<sub>EVT</sub></span></div>
+        </div>
+        <div id="p3-heat"></div>
+        <details class="table-view">
+          <summary><span lang="en">Node features used by the ranking (table)</span><span lang="ru">Признаки узлов для ранжирования (таблица)</span></summary>
+          <div class="table-wrap"><table id="s3-features" class="data"></table></div>
+        </details>
+      </div>
+    </div>
+    <aside class="side">
+      <div class="card controls">
+        <div class="ctl-head"><h3><span lang="en">Baseline</span><span lang="ru">Фон (baseline)</span></h3></div>
+        <div class="ctl" data-k="@evt.oracle" data-type="toggle" data-en="Oracle: end at the true onset" data-ru="Oracle: до истинного начала"></div>
+        <div class="ctl" data-k="@evt.baseline" data-min="50" data-max="1400" data-step="1" data-en="Baseline size B" data-ru="Размер фона B"></div>
+        <div class="ctl-head"><h3>POT / GPD</h3></div>
+        <div class="ctl" data-k="@evt.tailQuantile" data-min="0.6" data-max="0.99" data-step="0.01" data-en="Tail quantile q" data-ru="Квантиль хвоста q"></div>
+        <div class="ctl" data-k="@evt.alarmProbability" data-min="0.9" data-max="0.9995" data-step="0.0005" data-en="Alarm probability p" data-ru="Вероятность тревоги p"></div>
+        <div class="ctl" data-k="@evt.topK" data-min="1" data-max="6" data-step="1" data-en="Top-k channels" data-ru="Top-k каналов" data-only="nd"></div>
+        <div class="ctl" data-k="@evt.persistence" data-min="1" data-max="6" data-step="1" data-en="Persistence r" data-ru="Устойчивость r"></div>
+        <div data-only="nd">
+          <div class="ctl-head"><h3><span lang="en">Baseline graph</span><span lang="ru">Граф по фону</span></h3></div>
+          <div class="ctl" data-k="graph.method" data-type="select" data-options="ar:AR innovations|ar:AR-инновации;dfa:cross-DFA|dfa:cross-DFA;kuramoto:Kuramoto-wavelet|kuramoto:Курамото-вейвлет;ensemble:DFA ∩ Kuramoto|ensemble:DFA ∩ Курамото;auto:auto (planner rule)|auto:auto (правило планировщика)" data-en="Method" data-ru="Метод"></div>
+          <div class="ctl" data-k="graph.edgeThreshold" data-min="0" data-max="1" data-step="0.01" data-en="Edge threshold" data-ru="Порог ребра"></div>
+        </div>
+        <p class="hint" id="s3-spec-note"></p>
+        <button type="button" class="btn" data-reset="evt"><span lang="en">Reset to notebook spec</span><span lang="ru">Сбросить к спецификации ноутбука</span></button>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ============================================================== 4 PIPELINE -->
+<section class="sec" id="s4" data-section="s4">
+  <header class="sec-head">
+    <span class="num">4</span>
+    <div>
+      <h2><span lang="en">The agent pipeline at work</span><span lang="ru">Конвейер агента в работе</span></h2>
+      <p lang="en"><code>GraphEVTPipeline.run_detailed</code> is deterministic. Its <code>PipelinePlanner</code> chooses the route from the observable
+        input (one channel or many, event or not) — no LLM guesswork — executes the actions and records a plan → act → observe trace.</p>
+      <p lang="ru"><code>GraphEVTPipeline.run_detailed</code> детерминирован. <code>PipelinePlanner</code> выбирает маршрут по наблюдаемому входу
+        (один канал или много, есть событие или нет) — без догадок LLM — выполняет действия и записывает трассу plan → act → observe.</p>
+    </div>
+  </header>
+  <div class="scenario-row">
+    <span class="muted"><span lang="en">Scenario:</span><span lang="ru">Сценарий:</span></span>
+    <button type="button" class="btn small" data-scenario="nd"><span lang="en">n-D with an event</span><span lang="ru">n-D с событием</span></button>
+    <button type="button" class="btn small" data-scenario="nd-none"><span lang="en">n-D, nothing injected</span><span lang="ru">n-D, без впрыска</span></button>
+    <button type="button" class="btn small" data-scenario="1d"><span lang="en">1-D series</span><span lang="ru">1-D ряд</span></button>
+    <button type="button" class="btn small" data-scenario="nd-model"><span lang="en">n-D + trained GNN/GAT</span><span lang="ru">n-D + обученные GNN/GAT</span></button>
+    <span class="spacer"></span>
+    <button type="button" class="btn primary" id="s4-run">▶ <span lang="en">Run pipeline</span><span lang="ru">Запустить конвейер</span></button>
+  </div>
+  <div class="sec-grid wide-side">
+    <div class="main">
+      <div class="card">
+        <div class="card-head">
+          <h3><span lang="en">Executable route (as in notebook n-d/08)</span><span lang="ru">Исполняемый маршрут (как в ноутбуке n-d/08)</span></h3>
+          <div class="legend">
+            <span class="key"><span class="swatch box done"></span><span lang="en">completed</span><span lang="ru">выполнено</span></span>
+            <span class="key"><span class="swatch box active"></span><span lang="en">running</span><span lang="ru">выполняется</span></span>
+            <span class="key"><span class="swatch box skipped"></span><span lang="en">not on this route</span><span lang="ru">не на маршруте</span></span>
+          </div>
+        </div>
+        <svg id="flow" class="flow" viewBox="0 0 940 330" role="img" aria-labelledby="flow-title">
+          <title id="flow-title">Graph-EVT pipeline route</title>
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrow-head"/></marker>
+          </defs>
+          <g class="edges">
+            <path data-edge="input-inspect" d="M118,150 H148" marker-end="url(#arrow)"/>
+            <path data-edge="inspect-stationarity" d="M268,150 H298" marker-end="url(#arrow)"/>
+            <path data-edge="stationarity-evt" d="M418,150 H448" marker-end="url(#arrow)"/>
+            <path data-edge="evt-decision" d="M568,150 H596" marker-end="url(#arrow)"/>
+            <path data-edge="decision-graph" d="M660,118 V70 H700" marker-end="url(#arrow)"/>
+            <path data-edge="decision-stop" d="M660,182 V300 H698" marker-end="url(#arrow)"/>
+            <path data-edge="graph-rank" d="M760,96 V126" marker-end="url(#arrow)"/>
+            <path data-edge="rank-learned" d="M760,176 V206" marker-end="url(#arrow)"/>
+            <path data-edge="rank-output" d="M820,150 H850" marker-end="url(#arrow)"/>
+            <path data-edge="learned-output" d="M820,232 H880 V176" marker-end="url(#arrow)"/>
+          </g>
+          <g class="edge-labels">
+            <text x="652" y="92" text-anchor="end"><tspan lang="en">event &amp; n-D</tspan><tspan lang="ru">событие и n-D</tspan></text>
+            <text x="652" y="236" text-anchor="end"><tspan lang="en">otherwise</tspan><tspan lang="ru">иначе</tspan></text>
+            <text x="768" y="196"><tspan lang="en">model given</tspan><tspan lang="ru">есть модель</tspan></text>
+          </g>
+          <g class="nodes">
+            <g data-node="input" transform="translate(10,124)"><rect width="108" height="52" rx="8"/><text x="54" y="22">CSV / array</text><text x="54" y="38" class="sub">[time, channel]</text></g>
+            <g data-node="inspect_input" transform="translate(150,124)"><rect width="118" height="52" rx="8"/><text x="59" y="22">InputInspector</text><text x="59" y="38" class="sub"><tspan lang="en">schema · time · NaN</tspan><tspan lang="ru">схема · время · NaN</tspan></text></g>
+            <g data-node="check_stationarity" transform="translate(300,124)"><rect width="118" height="52" rx="8"/><text x="59" y="22"><tspan lang="en">stationarity</tspan><tspan lang="ru">стационарность</tspan></text><text x="59" y="38" class="sub">baseline</text></g>
+            <g data-node="detect_evt" transform="translate(450,124)"><rect width="118" height="52" rx="8"/><text x="59" y="22">EVT detect</text><text x="59" y="38" class="sub">MAD → top-k → GPD</text></g>
+            <g data-node="decision" transform="translate(600,118)"><path d="M60,0 L120,32 L60,64 L0,32 z"/><text x="60" y="30"><tspan lang="en">event?</tspan><tspan lang="ru">событие?</tspan></text><text x="60" y="44" class="sub">n-D?</text></g>
+            <g data-node="build_baseline_graph" transform="translate(700,44)"><rect width="120" height="52" rx="8"/><text x="60" y="22"><tspan lang="en">baseline graph</tspan><tspan lang="ru">граф по фону</tspan></text><text x="60" y="38" class="sub">AR / DFA / Kuramoto</text></g>
+            <g data-node="rank_source" transform="translate(700,124)"><rect width="120" height="52" rx="8"/><text x="60" y="22">source ranking</text><text x="60" y="38" class="sub"><tspan lang="en">5 features / node</tspan><tspan lang="ru">5 признаков / узел</tspan></text></g>
+            <g data-node="infer_gnn_gat_process" transform="translate(700,206)"><rect width="120" height="52" rx="8"/><text x="60" y="22">GNN + GAT</text><text x="60" y="38" class="sub"><tspan lang="en">optional</tspan><tspan lang="ru">опционально</tspan></text></g>
+            <g data-node="stop" transform="translate(700,278)"><rect width="176" height="44" rx="8"/><text x="88" y="20">stop</text><text x="88" y="34" class="sub" id="flow-stop-reason">stop_reason</text></g>
+            <g data-node="output" transform="translate(850,124)"><rect width="80" height="52" rx="8"/><text x="40" y="22"><tspan lang="en">result</tspan><tspan lang="ru">результат</tspan></text><text x="40" y="38" class="sub">plan + ŝ</text></g>
+          </g>
+        </svg>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3><span lang="en">Progress trace</span><span lang="ru">Трасса выполнения</span></h3><span class="stat" id="s4-status"></span></div>
+        <ol class="trace" id="s4-trace"></ol>
+      </div>
+    </div>
+    <aside class="side">
+      <div class="card">
+        <div class="card-head"><h3>PipelinePlan</h3></div>
+        <pre class="json" id="s4-plan"></pre>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3><span lang="en">Same call in Python</span><span lang="ru">Тот же вызов в Python</span></h3></div>
+        <pre class="code" id="s4-code"></pre>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ============================================================== 5 GNN/GAT -->
+<section class="sec" id="s5" data-section="s5">
+  <header class="sec-head">
+    <span class="num">5</span>
+    <div>
+      <h2><span lang="en">How GNN and GAT find the source</span><span lang="ru">Как GNN и GAT находят источник</span></h2>
+      <p lang="en">Both models score every node and take a softmax over nodes, so the output is a ranking of candidate sources. They differ in how a node
+        hears its neighbours: the GNN uses fixed graph averages, the GAT <em>learns</em> per-episode attention weights over the frozen edges.
+        Both are trained by cross-entropy on many independent labelled episodes — one recording is not a training set.</p>
+      <p lang="ru">Обе модели оценивают каждый узел и берут softmax по узлам, поэтому на выходе — ранжирование кандидатов в источник. Различие —
+        в том, как узел «слышит» соседей: GNN использует фиксированные средние по графу, GAT <em>обучает</em> веса внимания по зафиксированным рёбрам
+        для каждого эпизода. Обе обучаются по cross-entropy на многих независимых размеченных эпизодах — одна запись не является обучающей выборкой.</p>
+    </div>
+  </header>
+  <div class="two eq-pair">
+    <div class="eq-card">
+      <h4>GNN</h4>
+      <p>Â = D<sup>−1</sup>(A + I) &nbsp;·&nbsp; h<sub>i</sub> = tanh([x<sub>i</sub> ‖ (Âx)<sub>i</sub> ‖ (Â²x)<sub>i</sub>] W + b)</p>
+      <p>ℓ<sub>i</sub> = h<sub>i</sub> · o + c &nbsp;·&nbsp; P(s = i) = softmax(ℓ)<sub>i</sub></p>
+    </div>
+    <div class="eq-card">
+      <h4>GAT</h4>
+      <p>e<sub>ij</sub> = LeakyReLU(a<sub>1</sub>·x<sub>i</sub> + a<sub>2</sub>·x<sub>j</sub>) + log w<sub>ij</sub> &nbsp;·&nbsp; α<sub>ij</sub> = softmax<sub>j∈N(i)</sub> e<sub>ij</sub></p>
+      <p>h<sub>i</sub> = tanh([x<sub>i</sub> ‖ Σ<sub>j</sub> α<sub>ij</sub> x<sub>j</sub>] W + b) &nbsp;·&nbsp; P(s = i) = softmax(ℓ)<sub>i</sub></p>
+    </div>
+  </div>
+  <div class="sec-grid">
+    <div class="main">
+      <div class="card">
+        <div class="card-head">
+          <h3><span lang="en">Message passing on the current n-D episode</span><span lang="ru">Передача сообщений на текущем n-D эпизоде</span></h3>
+          <div class="ctl" data-k="mp.mode" data-type="seg" data-options="gnn:GNN mean|gnn:GNN среднее;gat:GAT attention|gat:GAT внимание"></div>
+        </div>
+        <p class="hint" id="s5-mp-hint"></p>
+        <div class="two mp">
+          <div id="p5-ring"></div>
+          <div id="s5-node" class="node-inspect"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h3><span lang="en">Training on independent episodes</span><span lang="ru">Обучение на независимых эпизодах</span></h3>
+          <span class="stat" id="s5-train-status"></span>
+        </div>
+        <p class="hint" lang="en">Each recording is a Kuramoto background with 4 bursts from random sources (<code>generate_kuramoto_propagation_recording</code>).
+          <code>EpisodeLabeler</code> finds every event with <code>find_events</code> (baseline 300, q = 0.90, p = 0.99, r = 2), builds the AR graph on the
+          baseline and stores the 5 ranking features; the known source is the label. Validation holds out whole recordings.</p>
+        <p class="hint" lang="ru">Каждая запись — фон Курамото с 4 всплесками из случайных источников (<code>generate_kuramoto_propagation_recording</code>).
+          <code>EpisodeLabeler</code> находит каждое событие через <code>find_events</code> (фон 300, q = 0.90, p = 0.99, r = 2), строит AR-граф по фону и
+          сохраняет 5 признаков ранжирования; метка — известный источник. Валидация откладывает записи целиком.</p>
+        <div class="two">
+          <div>
+            <div class="panel-label"><span lang="en">Cross-entropy loss</span><span lang="ru">Функция потерь cross-entropy</span></div>
+            <div id="p5-loss"></div>
+          </div>
+          <div>
+            <div class="panel-label"><span lang="en">Top-1 accuracy</span><span lang="ru">Точность Top-1</span></div>
+            <div id="p5-acc"></div>
+          </div>
+        </div>
+        <div class="legend">
+          <span class="key"><span class="swatch line" style="background:var(--series-2)"></span>GNN</span>
+          <span class="key"><span class="swatch line" style="background:var(--series-3)"></span>GAT</span>
+          <span class="key"><span class="swatch line" style="background:var(--ink-2)"></span><span lang="en">train (solid)</span><span lang="ru">обучение (сплошная)</span></span>
+          <span class="key"><span class="swatch line dashed" style="border-color:var(--ink-2)"></span><span lang="en">validation (dashed)</span><span lang="ru">валидация (пунктир)</span></span>
+        </div>
+        <div class="table-wrap"><table class="data" id="s5-metrics"></table></div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h3><span lang="en">Three rankers on the current episode</span><span lang="ru">Три ранжировщика на текущем эпизоде</span></h3>
+          <div class="legend">
+            <span class="key"><span class="swatch" style="background:var(--series-1)"></span><span lang="en">heuristic</span><span lang="ru">эвристика</span></span>
+            <span class="key"><span class="swatch" style="background:var(--series-2)"></span>GNN</span>
+            <span class="key"><span class="swatch" style="background:var(--series-3)"></span>GAT</span>
+          </div>
+        </div>
+        <div id="p5-compare"></div>
+        <p class="hint" id="s5-compare-note"></p>
+      </div>
+    </div>
+    <aside class="side">
+      <div class="card controls">
+        <div class="ctl-head"><h3><span lang="en">Training data</span><span lang="ru">Обучающие данные</span></h3></div>
+        <div class="ctl" data-k="train.recordings" data-min="4" data-max="40" data-step="1" data-en="Recordings (×4 events)" data-ru="Записи (×4 события)"></div>
+        <div class="ctl" data-k="train.validation" data-min="0.1" data-max="0.5" data-step="0.05" data-en="Validation fraction" data-ru="Доля валидации"></div>
+        <div class="ctl-head"><h3><span lang="en">Model</span><span lang="ru">Модель</span></h3></div>
+        <div class="ctl" data-k="train.hidden" data-min="2" data-max="32" data-step="1" data-en="Hidden units" data-ru="Скрытые нейроны"></div>
+        <div class="ctl" data-k="train.epochs" data-min="20" data-max="600" data-step="10" data-en="Epochs" data-ru="Эпохи"></div>
+        <div class="ctl" data-k="train.lr" data-min="0.002" data-max="0.1" data-step="0.002" data-en="Learning rate" data-ru="Скорость обучения"></div>
+        <div class="ctl" data-k="train.seed" data-type="number" data-min="0" data-max="99999" data-step="1" data-en="Seed" data-ru="Seed"></div>
+        <button type="button" class="btn primary" id="s5-train">▶ <span lang="en">Train GNN + GAT</span><span lang="ru">Обучить GNN + GAT</span></button>
+        <p class="hint"><span lang="en">The trained model is plugged into the pipeline (section 4) and the evaluation batch (section 6).</span>
+          <span lang="ru">Обученная модель подключается к конвейеру (раздел 4) и пакетной оценке (раздел 6).</span></p>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ============================================================== 6 ORCHESTRATION -->
+<section class="sec" id="s6" data-section="s6">
+  <header class="sec-head">
+    <span class="num">6</span>
+    <div>
+      <h2><span lang="en">Orchestration of agents</span><span lang="ru">Оркестрация агентов</span></h2>
+      <p lang="en">Two orchestrators sit on top of the deterministic pipeline. <code>EVTAgentTeam</code> lets LLM specialists explain and audit one run
+        without ever touching the numbers. <code>EvaluationOrchestrator</code> pushes a batch of cases through the same frozen pipeline, follows each
+        case's route and scores only what that route can support.</p>
+      <p lang="ru">Над детерминированным конвейером — два оркестратора. <code>EVTAgentTeam</code> даёт LLM-специалистам объяснить и проверить один
+        запуск, никогда не меняя чисел. <code>EvaluationOrchestrator</code> прогоняет пакет случаев через тот же зафиксированный конвейер, следует
+        маршруту каждого случая и оценивает только то, что этот маршрут поддерживает.</p>
+    </div>
+  </header>
+  <div class="sec-grid wide-side">
+    <div class="main">
+      <div class="card">
+        <div class="card-head">
+          <h3>EVTAgentTeam</h3>
+          <button type="button" class="btn primary small" id="s6-team-run">▶ <span lang="en">Run the team</span><span lang="ru">Запустить команду</span></button>
+        </div>
+        <svg id="team" class="flow team" viewBox="0 0 940 250" role="img" aria-labelledby="team-title">
+          <title id="team-title">EVTAgentTeam message flow</title>
+          <g class="edges">
+            <path data-edge="pipe-evidence" d="M150,125 H190" marker-end="url(#arrow)"/>
+            <path data-edge="evidence-input" d="M330,125 C360,125 360,35 400,35" marker-end="url(#arrow)"/>
+            <path data-edge="evidence-evt" d="M330,125 C360,125 360,95 400,95" marker-end="url(#arrow)"/>
+            <path data-edge="evidence-graph" d="M330,125 C360,125 360,155 400,155" marker-end="url(#arrow)"/>
+            <path data-edge="evidence-loc" d="M330,125 C360,125 360,215 400,215" marker-end="url(#arrow)"/>
+            <path data-edge="input-coord" d="M560,35 C600,35 600,125 640,125" marker-end="url(#arrow)"/>
+            <path data-edge="evt-coord" d="M560,95 C600,95 600,125 640,125" marker-end="url(#arrow)"/>
+            <path data-edge="graph-coord" d="M560,155 C600,155 600,125 640,125" marker-end="url(#arrow)"/>
+            <path data-edge="loc-coord" d="M560,215 C600,215 600,125 640,125" marker-end="url(#arrow)"/>
+            <path data-edge="coord-report" d="M780,125 H820" marker-end="url(#arrow)"/>
+          </g>
+          <g class="nodes">
+            <g data-node="pipeline" transform="translate(10,99)"><rect width="140" height="52" rx="8"/><text x="70" y="22">GraphEVTPipeline</text><text x="70" y="38" class="sub"><tspan lang="en">deterministic numbers</tspan><tspan lang="ru">числа без LLM</tspan></text></g>
+            <g data-node="evidence" transform="translate(190,99)"><rect width="140" height="52" rx="8"/><text x="70" y="22">evidence JSON</text><text x="70" y="38" class="sub"><tspan lang="en">bounded, top-10</tspan><tspan lang="ru">ограниченный, top-10</tspan></text></g>
+            <g data-node="input" transform="translate(400,12)"><rect width="160" height="46" rx="8"/><text x="80" y="20"><tspan lang="en">Input agent</tspan><tspan lang="ru">Агент входа</tspan></text><text x="80" y="35" class="sub">1-D / n-D, NaN</text></g>
+            <g data-node="evt" transform="translate(400,72)"><rect width="160" height="46" rx="8"/><text x="80" y="20"><tspan lang="en">EVT agent</tspan><tspan lang="ru">Агент EVT</tspan></text><text x="80" y="35" class="sub">t_EVT, q_EVT</text></g>
+            <g data-node="graph" transform="translate(400,132)"><rect width="160" height="46" rx="8"/><text x="80" y="20"><tspan lang="en">Graph agent</tspan><tspan lang="ru">Агент графа</tspan></text><text x="80" y="35" class="sub"><tspan lang="en">edges, leakage</tspan><tspan lang="ru">рёбра, утечка</tspan></text></g>
+            <g data-node="loc" transform="translate(400,192)"><rect width="160" height="46" rx="8"/><text x="80" y="20"><tspan lang="en">Localization agent</tspan><tspan lang="ru">Агент локализации</tspan></text><text x="80" y="35" class="sub">ranking</text></g>
+            <g data-node="coord" transform="translate(640,99)"><rect width="140" height="52" rx="8"/><text x="70" y="22"><tspan lang="en">Coordinator</tspan><tspan lang="ru">Координатор</tspan></text><text x="70" y="38" class="sub">final_report</text></g>
+            <g data-node="report" transform="translate(820,99)"><rect width="110" height="52" rx="8"/><text x="55" y="22">AgentReport</text><text x="55" y="38" class="sub"><tspan lang="en">to the user</tspan><tspan lang="ru">пользователю</tspan></text></g>
+          </g>
+        </svg>
+        <p class="hint"><span lang="en">Guard in every system prompt (verbatim from <code>agents.py</code>):</span><span lang="ru">Ограничение в каждом системном промпте (дословно из <code>agents.py</code>):</span>
+          <q class="guard">Опирайся только на JSON. Не изменяй численные результаты. Отделяй статистическую редкость от причинности и явно отмечай ограничения.</q>
+          <span lang="en" class="muted">— "Rely only on the JSON. Do not change numerical results. Separate statistical rarity from causality and state limitations explicitly."</span></p>
+        <div class="transcript" id="s6-transcript"></div>
+        <p class="hint offline"><span lang="en">Offline demo: replies are deterministic templates filled from the evidence JSON. In notebooks <code>1-d/04</code> and
+          <code>n-d/04</code> the same prompts go to Mistral (<code>MISTRAL_API_KEY</code> from the environment only).</span>
+          <span lang="ru">Офлайн-демо: ответы — детерминированные шаблоны, заполненные из evidence JSON. В ноутбуках <code>1-d/04</code> и <code>n-d/04</code>
+          те же промпты уходят в Mistral (<code>MISTRAL_API_KEY</code> — только из окружения).</span></p>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h3>EvaluationOrchestrator</h3>
+          <button type="button" class="btn primary small" id="s6-eval-run">▶ <span lang="en">Evaluate batch</span><span lang="ru">Оценить пакет</span></button>
+        </div>
+        <p class="hint" lang="en">A mixed batch of short synthetic cases (600 samples, onset 330–450). 1-D cases get detection metrics only; n-D cases with
+          a hit also get the rank of the true source for the heuristic and, once section 5 has trained a model, for GNN and GAT.
+          Watch the n-D cases <em>without</em> an event: most still raise an alarm, because the oscillators keep drifting after a short baseline and that drift
+          is rare <em>relative to the baseline</em>. EVT measures rarity against the baseline, not the presence of an injected burst; the stationary
+          1-D background gives correct rejections instead. Switch the oracle off to see early alarms as well.</p>
+        <p class="hint" lang="ru">Смешанный пакет коротких синтетических случаев (600 отсчётов, начало 330–450). 1-D случаи получают только метрики детекции;
+          n-D случаи с попаданием — ещё и ранг истинного источника для эвристики и, после обучения в разделе 5, для GNN и GAT.
+          Обратите внимание на n-D случаи <em>без</em> события: большинство всё равно даёт тревогу, потому что осцилляторы продолжают дрейфовать после
+          короткого фона, и этот дрейф редок <em>относительно фона</em>. EVT измеряет редкость относительно фона, а не наличие впрыснутого всплеска;
+          стационарный 1-D фон даёт верные отказы. Выключите oracle, чтобы увидеть и ранние тревоги.</p>
+        <div class="legend outcome-legend" id="s6-outcome-legend"></div>
+        <div class="case-grid" id="s6-cases"></div>
+        <div class="table-wrap"><table class="data" id="s6-summary"></table></div>
+      </div>
+    </div>
+    <aside class="side">
+      <div class="card">
+        <div class="card-head"><h3><span lang="en">Evidence JSON</span><span lang="ru">Evidence JSON</span></h3><span class="muted small-text" id="s6-evidence-case"></span></div>
+        <pre class="json tall" id="s6-evidence"></pre>
+      </div>
+      <div class="card controls">
+        <div class="ctl-head"><h3><span lang="en">Evaluation batch</span><span lang="ru">Пакет оценки</span></h3></div>
+        <div class="ctl" data-k="evalb.cases" data-min="8" data-max="60" data-step="1" data-en="Cases" data-ru="Случаи"></div>
+        <div class="ctl" data-k="evalb.share1d" data-min="0" data-max="1" data-step="0.05" data-en="Share of 1-D cases" data-ru="Доля 1-D случаев"></div>
+        <div class="ctl" data-k="evalb.shareNone" data-min="0" data-max="0.8" data-step="0.05" data-en="Share without an event" data-ru="Доля без события"></div>
+        <div class="ctl" data-k="evalb.oracle" data-type="toggle" data-en="Oracle baseline (ends at onset)" data-ru="Oracle-фон (до начала)"></div>
+        <div class="ctl" data-k="evalb.earlyTolerance" data-min="0" data-max="50" data-step="1" data-en="early_tolerance" data-ru="early_tolerance"></div>
+        <div class="ctl" data-k="evalb.k" data-min="1" data-max="6" data-step="1" data-en="Top-k" data-ru="Top-k"></div>
+        <div class="ctl" data-k="evalb.seed" data-type="number" data-min="0" data-max="99999" data-step="1" data-en="Seed" data-ru="Seed"></div>
+        <p class="hint"><span lang="en">Cases use the EVT spec of section 3 and the signal settings of sections 1–2; without the oracle the baseline is a fixed B = 300.</span>
+          <span lang="ru">Случаи используют EVT-спецификацию раздела 3 и настройки сигналов разделов 1–2; без oracle фон фиксирован: B = 300.</span></p>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ============================================================== 7 GRAPHS -->
+<section class="sec" id="s7" data-section="s7">
+  <header class="sec-head">
+    <span class="num">7</span>
+    <div>
+      <h2><span lang="en">Competing graph hypotheses</span><span lang="ru">Конкурирующие гипотезы графа</span></h2>
+      <p lang="en">The graph is a testable dependence hypothesis, not proof of causality. The rule from the method: if the baseline is approximately
+        stationary, use AR-innovation dependence; otherwise test cross-DFA and Kuramoto + wavelet phase locking. <code>auto</code> applies exactly this
+        rule and, when non-stationary, keeps only the edges both non-stationary hypotheses agree on.</p>
+      <p lang="ru">Граф — проверяемая гипотеза зависимости, а не доказательство причинности. Правило метода: если фон приблизительно стационарен —
+        зависимость AR-инноваций; иначе — проверить cross-DFA и фазовую синхронизацию Курамото + вейвлеты. <code>auto</code> применяет именно это
+        правило и для нестационарного фона оставляет только рёбра, на которых сходятся обе нестационарные гипотезы.</p>
+    </div>
+  </header>
+  <div class="tiles" id="s7-tiles"></div>
+  <div class="sec-grid">
+    <div class="main">
+      <div class="graph-grid">
+        <div class="card"><div class="card-head"><h3>AR innovations</h3><span class="stat" data-g="ar"></span></div><div id="p7-ar"></div>
+          <p class="hint"><span lang="en">|corr| of AR(p) residuals per channel.</span><span lang="ru">|corr| остатков AR(p) по каналам.</span></p></div>
+        <div class="card"><div class="card-head"><h3>cross-DFA</h3><span class="stat" data-g="dfa"></span></div><div id="p7-dfa"></div>
+          <p class="hint"><span lang="en">½ detrended cross-correlation + ½ e<sup>−|α<sub>i</sub>−α<sub>j</sub>|</sup>.</span><span lang="ru">½ детрендированной кросс-корреляции + ½ e<sup>−|α<sub>i</sub>−α<sub>j</sub>|</sup>.</span></p></div>
+        <div class="card"><div class="card-head"><h3>Kuramoto-wavelet</h3><span class="stat" data-g="kuramoto"></span></div><div id="p7-kuramoto"></div>
+          <p class="hint"><span lang="en">Morlet phase locking, kept only above circular-shift surrogates.</span><span lang="ru">Фазовая синхронизация Морле, только выше суррогатов с циклическим сдвигом.</span></p></div>
+        <div class="card"><div class="card-head"><h3>DFA ∩ Kuramoto</h3><span class="stat" data-g="ensemble"></span></div><div id="p7-ensemble"></div>
+          <p class="hint"><span lang="en">Prespecified ensemble: edges present in both.</span><span lang="ru">Заранее заданный ансамбль: рёбра, присутствующие в обоих.</span></p></div>
+      </div>
+      <div class="card">
+        <div class="table-wrap"><table class="data" id="s7-table"></table></div>
+        <p class="hint"><span lang="en">Same detection, four graphs: does the estimated source survive the choice of graph? Robustness to the graph is one of the
+          metrics the method asks you to report.</span><span lang="ru">Одна детекция, четыре графа: сохраняется ли оценка источника при смене графа? Устойчивость к выбору
+          графа — одна из метрик, которые метод требует сообщать.</span></p>
+      </div>
+    </div>
+    <aside class="side">
+      <div class="card controls">
+        <p class="hint"><span lang="en">Uses the n-D recording of section 2 and the baseline of section 3.</span><span lang="ru">Используются n-D запись из раздела 2 и фон из раздела 3.</span></p>
+        <div class="ctl" data-k="graph.edgeThreshold" data-min="0" data-max="1" data-step="0.01" data-en="Edge threshold" data-ru="Порог ребра"></div>
+        <div class="ctl" data-k="graph.arOrder" data-min="1" data-max="10" data-step="1" data-en="AR order p" data-ru="Порядок AR p"></div>
+        <div class="ctl" data-k="graph.surrogateCount" data-min="9" data-max="199" data-step="10" data-en="Surrogates" data-ru="Суррогаты"></div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ============================================================== 8 TEMPORAL -->
+<section class="sec" id="s8" data-section="s8">
+  <header class="sec-head">
+    <span class="num">8</span>
+    <div>
+      <h2><span lang="en">1-D temporal graph: time windows as nodes</span><span lang="ru">Временной граф 1-D: окна времени как узлы</span></h2>
+      <p lang="en">With one channel, <code>graph_evt_agent.temporal</code> cuts the series into overlapping windows (<code>window_size</code>, <code>stride</code>);
+        each window is a node linked to its <code>neighborhood</code>. Node features are the same five as in n-D plus <strong>onset-context</strong> columns:
+        log-energy of baseline-AR innovations over horizons after the window start, and its contrast with the horizon before. Without that context the
+        model finds the <em>end</em> of the event (its maximum) rather than its onset. The target is the window containing the onset; the prediction is
+        mapped back to <code>[start, start + window_size)</code>.</p>
+      <p lang="ru">С одним каналом <code>graph_evt_agent.temporal</code> нарезает ряд на перекрывающиеся окна (<code>window_size</code>, <code>stride</code>);
+        окно — узел, связанный с соседями (<code>neighborhood</code>). Признаки узла — те же пять, что в n-D, плюс столбцы <strong>контекста начала</strong>:
+        log-энергия AR-инноваций (модель по фону) на горизонтах после начала окна и её контраст с горизонтом до. Без контекста модель находит
+        <em>конец</em> события (максимум), а не начало. Цель — окно, содержащее onset; предсказание отображается обратно в
+        <code>[start, start + window_size)</code>.</p>
+    </div>
+  </header>
+  <div class="sec-grid">
+    <div class="main">
+      <div class="card">
+        <div class="card-head">
+          <h3><span lang="en">Current series (section 1) as a window graph</span><span lang="ru">Текущий ряд (раздел 1) как граф окон</span></h3>
+          <div class="legend">
+            <span class="key"><span class="swatch line" style="background:var(--series-1)"></span>x(t)</span>
+            <span class="key"><span class="swatch band"></span><span lang="en">onset window (target)</span><span lang="ru">окно начала (цель)</span></span>
+            <span class="key"><span class="swatch band neutral"></span>baseline</span>
+          </div>
+        </div>
+        <div id="p8-series"></div>
+        <div class="panel-label"><span lang="en">Nodes: one dot per window, colour = robust peak, arcs = edges</span><span lang="ru">Узлы: точка на окно, цвет = робастный пик, дуги = рёбра</span></div>
+        <canvas id="p8-nodes" class="nodes-strip"></canvas>
+        <div class="panel-label"><span lang="en">Predicted onset window, mapped back to time</span><span lang="ru">Предсказанное окно начала, отображённое во время</span></div>
+        <div id="p8-pred"></div>
+        <p class="hint" id="s8-pred-note"></p>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3><span lang="en">Training on many 1-D records</span><span lang="ru">Обучение на многих 1-D записях</span></h3><span class="stat" id="s8-train-status"></span></div>
+        <p class="hint" lang="en">As in notebook <code>1-d/09</code>: each record is <code>generate_additive_fractal_series</code> with its own seed (signal settings from
+          section 1), with a random 0–499-sample crop of the start so the onset moves (otherwise the model would learn a position, not dynamics).</p>
+        <p class="hint" lang="ru">Как в ноутбуке <code>1-d/09</code>: каждая запись — <code>generate_additive_fractal_series</code> со своим seed (настройки сигнала из
+          раздела 1) и случайной обрезкой 0–499 отсчётов начала, чтобы onset сдвигался (иначе модель выучит позицию, а не динамику).</p>
+        <div class="two">
+          <div><div class="panel-label"><span lang="en">Loss</span><span lang="ru">Потери</span></div><div id="p8-loss"></div></div>
+          <div><div class="panel-label"><span lang="en">Top-1 accuracy (exact window)</span><span lang="ru">Точность Top-1 (точное окно)</span></div><div id="p8-acc"></div></div>
+        </div>
+        <div class="table-wrap"><table class="data" id="s8-metrics"></table></div>
+      </div>
+    </div>
+    <aside class="side">
+      <div class="card controls">
+        <div class="ctl-head"><h3><span lang="en">Temporal graph</span><span lang="ru">Временной граф</span></h3></div>
+        <div class="ctl" data-k="tg.windowSize" data-min="8" data-max="96" data-step="4" data-en="window_size" data-ru="window_size"></div>
+        <div class="ctl" data-k="tg.stride" data-min="4" data-max="48" data-step="2" data-en="stride" data-ru="stride"></div>
+        <div class="ctl" data-k="tg.neighborhood" data-min="1" data-max="4" data-step="1" data-en="neighborhood" data-ru="neighborhood"></div>
+        <div class="ctl" data-k="tg.context" data-type="toggle" data-en="AR onset-context features" data-ru="AR-признаки контекста начала"></div>
+        <div class="ctl-head"><h3><span lang="en">Training</span><span lang="ru">Обучение</span></h3></div>
+        <div class="ctl" data-k="tg.records" data-min="12" data-max="96" data-step="4" data-en="Records" data-ru="Записи"></div>
+        <div class="ctl" data-k="tg.epochs" data-min="20" data-max="400" data-step="10" data-en="Epochs" data-ru="Эпохи"></div>
+        <div class="ctl" data-k="tg.hidden" data-min="2" data-max="24" data-step="1" data-en="Hidden units" data-ru="Скрытые нейроны"></div>
+        <button type="button" class="btn primary" id="s8-train">▶ <span lang="en">Train temporal GNN + GAT</span><span lang="ru">Обучить временные GNN + GAT</span></button>
+        <p class="hint"><span lang="en">Try switching the context off and retraining: the window graph alone cannot see where the change began.</span>
+          <span lang="ru">Попробуйте выключить контекст и переобучить: один граф окон не видит, где началось изменение.</span></p>
+      </div>
+    </aside>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <div>
+    <p lang="en"><strong>Source:</strong> <a href="https://github.com/D2718281828nis/EVT-educational-demo">EVT-educational-demo</a> ·
+      <a href="https://github.com/D2718281828nis/EVT-educational-demo/blob/main/how-new-aaproach-EVT-works.md">how the approach works</a> ·
+      <a href="https://github.com/D2718281828nis/EVT-educational-demo/blob/main/EVT_THEORY.md">EVT theory</a> ·
+      <a href="kuramoto/">Kuramoto Propagation Explorer</a></p>
+    <p lang="ru"><strong>Источник:</strong> <a href="https://github.com/D2718281828nis/EVT-educational-demo">EVT-educational-demo</a> ·
+      <a href="https://github.com/D2718281828nis/EVT-educational-demo/blob/main/how-new-aaproach-EVT-works.md">как работает подход</a> ·
+      <a href="https://github.com/D2718281828nis/EVT-educational-demo/blob/main/EVT_THEORY.md">теория EVT</a> ·
+      <a href="kuramoto/">Kuramoto Propagation Explorer</a></p>
+    <p class="muted" lang="en">Interpretation limits: an EVT threshold means rarity relative to the chosen baseline, not pathology or causality; GAT attention is not proof
+      of a causal mechanism; results on a single synthetic recording are an illustration, not a benchmark.</p>
+    <p class="muted" lang="ru">Ограничения: EVT-порог означает редкость относительно выбранного фона, а не патологию или причинность; внимание GAT не доказывает причинный
+      механизм; результаты на одной синтетической записи — иллюстрация, а не benchmark.</p>
+  </div>
+</footer>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

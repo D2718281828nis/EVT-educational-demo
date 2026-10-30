@@ -72,6 +72,8 @@ h2 { font-size: 15px; margin: 0; }
   max-width: 1440px; margin: 0 auto; padding: 20px 16px 8px;
 }
 .lede { margin: 0 0 4px; color: var(--ink-2); max-width: 820px; }
+.back-link { margin: 0 0 6px; font-size: 13px; }
+.back-link a { text-decoration: none; }
 .lede.ru { color: var(--muted); font-size: 13px; }
 .status {
   flex: none; display: flex; align-items: center; gap: 8px; padding: 6px 10px;

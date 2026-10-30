@@ -1,11 +1,11 @@
 // Runs the repository's evt_demo/data_generator.py in Pyodide, off the UI thread.
 importScripts("https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js");
 
-// The Pages workflow copies the generator to py/; the second path works when
-// the repository root is served locally (python -m http.server).
+// The Pages workflow copies the generator to the site root's py/; the second
+// path works when the repository root is served locally (python -m http.server).
 const GENERATOR_PATHS = [
-  "py/evt_demo/data_generator.py",
-  "../demo/evt-educational-demo/src/evt_demo/data_generator.py",
+  "../py/evt_demo/data_generator.py",
+  "../../demo/evt-educational-demo/src/evt_demo/data_generator.py",
 ];
 
 // data_generator.py imports TimeSeriesInput only for the multi-event recording,
