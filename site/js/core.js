@@ -1,10 +1,13 @@
 // Browser ports of the repository's numerical code:
 //   evt_demo.data_generator  -> signals (additive 1-D, Kuramoto propagation)
 //   graph_evt_agent          -> EVT detection, baseline graphs, source ranking,
+//                               (corr / partial / xcorr / pwxcorr / granger: graph_methods.js)
 //                               planner, GNN/GAT, temporal graphs, evaluation.
 // The algorithms follow the Python line by line. Only the random generator
 // differs (numpy's PCG64 is replaced by a seeded mulberry32), so the curves
 // have the notebooks' statistics but not their exact samples.
+
+import { functionalGraph } from "./graph_methods.js";
 
 export const TAU = 2 * Math.PI;
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
@@ -658,9 +661,20 @@ export function approximatelyStationary(data) {
 }
 
 export const GRAPH_DEFAULTS = {
-  method: "ar", arOrder: 2, edgeThreshold: 0.35, dfaScales: [8, 16, 32, 64],
+  method: "ar", arOrder: 2, edgeThreshold: 0.35, edgeRule: "threshold", topK: 2, maxLag: 20, lagStep: 5, ridge: 1e-3, dfaScales: [8, 16, 32, 64],
   waveletPeriods: [8, 16, 32], surrogateCount: 99, surrogateQuantile: 0.95, randomState: 0,
 };
+
+// Graph-EVT-agent graph-methods: GraphResult.method names of the five dependence measures.
+export const DEPENDENCE_METHODS = { corr: "correlation", partial: "partial_correlation", xcorr: "lagged_cross_correlation",
+  pwxcorr: "prewhitened_lagged_cross_correlation", granger: "conditional_granger" };
+/** build_graph with method corr | partial | xcorr | pwxcorr | granger (edge_rule threshold or topk). */
+function dependenceGraph(baseline, cfg, method) {
+  const { n, p } = baseline, chans = Array.from({ length: p }, (_, j) => column(baseline, j));
+  const g = functionalGraph(chans, 0, n, { method, threshold: cfg.edgeThreshold, rule: cfg.edgeRule, k: cfg.topK, maxLag: cfg.maxLag,
+    lagStep: cfg.lagStep, order: cfg.arOrder, ridge: cfg.ridge });
+  return { adjacency: g.adjacency, dependence: g.dependence, method: DEPENDENCE_METHODS[method], p, lag: g.lag };
+}
 
 /** build_graph: the configured hypothesis, or the DFA ∩ Kuramoto ensemble. */
 export function buildGraph(baseline, config) {
@@ -670,6 +684,7 @@ export function buildGraph(baseline, config) {
   if (method === "ar") return innovationGraph(baseline, cfg);
   if (method === "dfa") return dfaGraph(baseline, cfg);
   if (method === "kuramoto") return kuramotoWaveletGraph(baseline, cfg);
+  if (DEPENDENCE_METHODS[method]) return dependenceGraph(baseline, cfg, method);
   const d = dfaGraph(baseline, cfg), k = kuramotoWaveletGraph(baseline, cfg), p = baseline.p;
   const adjacency = new Float64Array(p * p), dependence = new Float64Array(p * p);
   for (let i = 0; i < p * p; i++) { adjacency[i] = d.adjacency[i] && k.adjacency[i] ? 1 : 0; dependence[i] = Math.sqrt(d.dependence[i] * k.dependence[i]); }

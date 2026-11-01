@@ -31,7 +31,7 @@ const DEFAULTS = {
   nd: { n: 1500, p: 12, source: 0, seed: 73, coupling: 0.7, dt: 0.02, hurst: 0.75, magnitude: 2, delay: 5, decay: 0.65, onset: 932, duration: 75 },
   evt1: { oracle: true, baseline: 1000, tailQuantile: 0.95, alarmProbability: 0.999, topK: 1, persistence: 3 },
   evtN: { oracle: true, baseline: 932, tailQuantile: 0.85, alarmProbability: 0.97, topK: 3, persistence: 1 },
-  graph: { method: "ar", edgeThreshold: 0.35, arOrder: 2, surrogateCount: 99 },
+  graph: { method: "ar", edgeThreshold: 0.35, arOrder: 2, surrogateCount: 99, edgeRule: "threshold", topK: 2, maxLag: 20, lagStep: 5 },
   mp: { mode: "gat", node: null },
   useModel: false,
   train: { recordings: 16, validation: 0.25, hidden: 8, epochs: 200, lr: 0.02, seed: 42 },
@@ -589,6 +589,10 @@ function renderPlan(r) {
     `              alarm_probability=${e.alarmProbability},`,
     `              top_k=${e.topK}, persistence=${e.persistence}),`,
     `    graph=GraphConfig(method="${state.graph.method}",`,
+    ...(C.DEPENDENCE_METHODS[state.graph.method]
+      ? [`                      edge_rule="${state.graph.edgeRule}", top_k_edges=${state.graph.topK},`,
+         `                      max_lag=${state.graph.maxLag}, lag_step=${state.graph.lagStep},`]
+      : []),
     `                      edge_threshold=${state.graph.edgeThreshold}),`,
   ];
   if (isNd && r.process) lines.push("    process_model=model,  # section 5 / n-d/09");
@@ -1023,7 +1027,7 @@ $("s6-eval-run").addEventListener("click", () => { evalDirty = true; renderEvalu
 renderers.s6 = () => { renderTeam(); evalDirty = true; renderEvaluation(); };
 
 // ============================================================ 7 — graph hypotheses
-const METHODS7 = ["ar", "dfa", "kuramoto", "ensemble"];
+const METHODS7 = ["ar", "dfa", "kuramoto", "ensemble", "corr", "partial", "xcorr", "pwxcorr", "granger"];
 const p7 = Object.fromEntries(METHODS7.map((m) => [m, new RingGraph(`p7-${m}`, { height: 250 })]));
 renderers.s7 = () => {
   const d = nd(), r = resN(), det = r.detection, B = det.config.baseline, base = C.slice(d, 0, B);

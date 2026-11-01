@@ -68,11 +68,11 @@
   </ol>
   <p class="disclaimer">
     <span lang="en">All data are synthetic. The algorithms are JavaScript ports of
-      <a href="https://github.com/D2718281828nis/Graph-EVT-agent">Graph-EVT-agent</a> (commit 465b231) and the repository's
+      <a href="https://github.com/D2718281828nis/Graph-EVT-agent">Graph-EVT-agent</a> (commit 4b9b62e) and the repository's
       <code>data_generator.py</code>; only the random generator differs from numpy, so seeds do not reproduce the notebooks sample by sample.
       Not for engineering, financial or clinical decisions.</span>
     <span lang="ru">Все данные синтетические. Алгоритмы — JavaScript-порты
-      <a href="https://github.com/D2718281828nis/Graph-EVT-agent">Graph-EVT-agent</a> (commit 465b231) и
+      <a href="https://github.com/D2718281828nis/Graph-EVT-agent">Graph-EVT-agent</a> (commit 4b9b62e) и
       <code>data_generator.py</code> репозитория; отличается только генератор случайных чисел (не numpy), поэтому seed не воспроизводит ноутбуки
       поотсчётно. Не для инженерных, финансовых или клинических решений.</span>
   </p>
@@ -387,7 +387,7 @@
         <div class="ctl" data-k="@evt.persistence" data-min="1" data-max="6" data-step="1" data-en="Persistence r" data-ru="Устойчивость r"></div>
         <div data-only="nd">
           <div class="ctl-head"><h3><span lang="en">Baseline graph</span><span lang="ru">Граф по фону</span></h3></div>
-          <div class="ctl" data-k="graph.method" data-type="select" data-options="ar:AR innovations|ar:AR-инновации;dfa:cross-DFA|dfa:cross-DFA;kuramoto:Kuramoto-wavelet|kuramoto:Курамото-вейвлет;ensemble:DFA ∩ Kuramoto|ensemble:DFA ∩ Курамото;auto:auto (planner rule)|auto:auto (правило планировщика)" data-en="Method" data-ru="Метод"></div>
+          <div class="ctl" data-k="graph.method" data-type="select" data-options="ar:AR innovations|ar:AR-инновации;dfa:cross-DFA|dfa:cross-DFA;kuramoto:Kuramoto-wavelet|kuramoto:Курамото-вейвлет;ensemble:DFA ∩ Kuramoto|ensemble:DFA ∩ Курамото;corr:correlation|corr:корреляция;partial:partial correlation|partial:частная корреляция;xcorr:lagged cross-correlation|xcorr:лаговая кросс-корреляция;pwxcorr:prewhitened cross-correlation|pwxcorr:выбеленная кросс-корреляция;granger:conditional Granger|granger:условная причинность по Грейнджеру;auto:auto (planner rule)|auto:auto (правило планировщика)" data-en="Method" data-ru="Метод"></div>
           <div class="ctl" data-k="graph.edgeThreshold" data-min="0" data-max="1" data-step="0.01" data-en="Edge threshold" data-ru="Порог ребра"></div>
         </div>
         <p class="hint" id="s3-spec-note"></p>
@@ -686,10 +686,12 @@
       <h2><span lang="en">Competing graph hypotheses</span><span lang="ru">Конкурирующие гипотезы графа</span></h2>
       <p lang="en">The graph is a testable dependence hypothesis, not proof of causality. The rule from the method: if the baseline is approximately
         stationary, use AR-innovation dependence; otherwise test cross-DFA and Kuramoto + wavelet phase locking. <code>auto</code> applies exactly this
-        rule and, when non-stationary, keeps only the edges both non-stationary hypotheses agree on.</p>
+        rule and, when non-stationary, keeps only the edges both non-stationary hypotheses agree on. Five more dependence measures — correlation, partial
+        correlation, lagged and prewhitened cross-correlation, conditional Granger — compete as further hypotheses.</p>
       <p lang="ru">Граф — проверяемая гипотеза зависимости, а не доказательство причинности. Правило метода: если фон приблизительно стационарен —
         зависимость AR-инноваций; иначе — проверить cross-DFA и фазовую синхронизацию Курамото + вейвлеты. <code>auto</code> применяет именно это
-        правило и для нестационарного фона оставляет только рёбра, на которых сходятся обе нестационарные гипотезы.</p>
+        правило и для нестационарного фона оставляет только рёбра, на которых сходятся обе нестационарные гипотезы. Ещё пять мер зависимости — корреляция,
+        частная корреляция, лаговая и выбеленная кросс-корреляция, условная причинность по Грейнджеру — конкурируют как дополнительные гипотезы.</p>
     </div>
   </header>
   <div class="tiles" id="s7-tiles"></div>
@@ -704,12 +706,29 @@
           <p class="hint"><span lang="en">Morlet phase locking, kept only above circular-shift surrogates.</span><span lang="ru">Фазовая синхронизация Морле, только выше суррогатов с циклическим сдвигом.</span></p></div>
         <div class="card"><div class="card-head"><h3>DFA ∩ Kuramoto</h3><span class="stat" data-g="ensemble"></span></div><div id="p7-ensemble"></div>
           <p class="hint"><span lang="en">Prespecified ensemble: edges present in both.</span><span lang="ru">Заранее заданный ансамбль: рёбра, присутствующие в обоих.</span></p></div>
+        <div class="card"><div class="card-head"><h3>correlation</h3><span class="stat" data-g="corr"></span></div><div id="p7-corr"></div>
+          <p class="hint"><span lang="en">|corr| at lag 0.</span><span lang="ru">|corr| при нулевом сдвиге.</span></p></div>
+        <div class="card"><div class="card-head"><h3>partial correlation</h3><span class="stat" data-g="partial"></span></div><div id="p7-partial"></div>
+          <p class="hint"><span lang="en">|partial corr| from the inverse correlation matrix: a chain a – b – c gives no a – c edge.</span><span lang="ru">|частная корреляция| по обратной корреляционной матрице: цепочка a – b – c не даёт ребра a – c.</span></p></div>
+        <div class="card"><div class="card-head"><h3>lagged cross-correlation</h3><span class="stat" data-g="xcorr"></span></div><div id="p7-xcorr"></div>
+          <p class="hint"><span lang="en">max over |lag| ≤ L of corr(x<sub>i</sub>(t), x<sub>j</sub>(t + lag)).</span><span lang="ru">max по |сдвиг| ≤ L от corr(x<sub>i</sub>(t), x<sub>j</sub>(t + сдвиг)).</span></p></div>
+        <div class="card"><div class="card-head"><h3>prewhitened cross-correlation</h3><span class="stat" data-g="pwxcorr"></span></div><div id="p7-pwxcorr"></div>
+          <p class="hint"><span lang="en">The same on AR(p) innovations: sharper peaks.</span><span lang="ru">То же по AR(p)-инновациям: пики острее.</span></p></div>
+        <div class="card"><div class="card-head"><h3>conditional Granger</h3><span class="stat" data-g="granger"></span></div><div id="p7-granger"></div>
+          <p class="hint"><span lang="en">ln(RSS without i / RSS with all), lags of every channel: only direct links stay strong.</span><span lang="ru">ln(RSS без i / RSS со всеми), сдвиги всех каналов: сильными остаются только прямые связи.</span></p></div>
       </div>
       <div class="card">
         <div class="table-wrap"><table class="data" id="s7-table"></table></div>
-        <p class="hint"><span lang="en">Same detection, four graphs: does the estimated source survive the choice of graph? Robustness to the graph is one of the
-          metrics the method asks you to report.</span><span lang="ru">Одна детекция, четыре графа: сохраняется ли оценка источника при смене графа? Устойчивость к выбору
+        <p class="hint"><span lang="en">Same detection, nine graphs: does the estimated source survive the choice of graph? Robustness to the graph is one of the
+          metrics the method asks you to report.</span><span lang="ru">Одна детекция, девять графов: сохраняется ли оценка источника при смене графа? Устойчивость к выбору
           графа — одна из метрик, которые метод требует сообщать.</span></p>
+        <p class="hint"><span lang="en"><b>Why no graph shows the ring.</b> The background oscillators are coupled all-to-all (mean field); the ring exists only in how
+          the event spreads. A graph built on the background alone therefore cannot recover the ring — for conditional measures (partial correlation,
+          Granger) a near-empty or arbitrary graph is the correct answer. A benchmark where the structure is recoverable from the background is in the
+          <a href="https://d2718281828nis.github.io/Educational-Live-Demo/#s3">one-sensor lab</a>, step 7.</span><span lang="ru"><b>Почему ни один граф не показывает кольцо.</b>
+          Осцилляторы фона связаны все со всеми (среднее поле); кольцо есть только в распространении события. Поэтому граф, построенный только по фону,
+          кольцо восстановить не может — для условных мер (частная корреляция, Грейнджер) почти пустой или произвольный граф и есть правильный ответ.
+          Эталон, где структура восстановима по фону, — в <a href="https://d2718281828nis.github.io/Educational-Live-Demo/?lang=ru#s3">лаборатории «один датчик»</a>, шаг 7.</span></p>
       </div>
     </div>
     <aside class="side">
@@ -718,6 +737,12 @@
         <div class="ctl" data-k="graph.edgeThreshold" data-min="0" data-max="1" data-step="0.01" data-en="Edge threshold" data-ru="Порог ребра"></div>
         <div class="ctl" data-k="graph.arOrder" data-min="1" data-max="10" data-step="1" data-en="AR order p" data-ru="Порядок AR p"></div>
         <div class="ctl" data-k="graph.surrogateCount" data-min="9" data-max="199" data-step="10" data-en="Surrogates" data-ru="Суррогаты"></div>
+        <p class="hint"><span lang="en">Five dependence measures:</span><span lang="ru">Пять мер зависимости:</span></p>
+        <div class="ctl" data-k="graph.edgeRule" data-type="select" data-options="threshold:dependence ≥ threshold|threshold:зависимость ≥ порога;topk:top-k per node|topk:k сильнейших на узел" data-en="Edge rule" data-ru="Правило рёбер"></div>
+        <div class="ctl" data-k="graph.topK" data-min="1" data-max="5" data-step="1" data-en="k (top-k rule)" data-ru="k (правило top-k)"></div>
+        <div class="ctl" data-k="graph.maxLag" data-min="5" data-max="40" data-step="5" data-en="Max lag L" data-ru="Макс. сдвиг L"></div>
+        <div class="ctl" data-k="graph.lagStep" data-min="1" data-max="10" data-step="1" data-en="Granger lag step" data-ru="Шаг сдвига Грейнджера"></div>
+        <p class="hint"><span lang="en">Each measure has its own scale (Granger strength is a log-ratio, not a correlation): to compare graphs with equal edge counts, use the top-k rule.</span><span lang="ru">У каждой меры своя шкала (сила по Грейнджеру — логарифм отношения, а не корреляция): чтобы сравнить графы с равным числом рёбер, используйте правило top-k.</span></p>
       </div>
     </aside>
   </div>

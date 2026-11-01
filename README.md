@@ -42,7 +42,10 @@ slider; everything is computed in the browser.
 onset and parameters of the noise added to `channel_00`, and watch the event propagate.
 
 The guide ([site/](site/)) uses JavaScript ports of `graph_evt_agent` and `data_generator.py`
-([site/js/core.js](site/js/core.js)); only the random generator differs from numpy. The Explorer
+([site/js/core.js](site/js/core.js)); only the random generator differs from numpy. The five dependence measures of
+Graph-EVT-agent (`corr`, `partial`, `xcorr`, `pwxcorr`, `granger`; section 7 and the graph selector) are in
+[site/js/graph_methods.js](site/js/graph_methods.js); `node tests/graph_methods_port_check.mjs` compares them with the
+Python library on a fixed input (fixture made by `tests/make_graph_reference.py`). The Explorer
 ([site/kuramoto/](site/kuramoto/)) runs the repository's own `data_generator.py` via Pyodide.
 [.github/workflows/pages.yml](.github/workflows/pages.yml) deploys both
 (Settings → Pages → Source: **GitHub Actions**). Local preview from the repository root:

@@ -1,0 +1,24 @@
+name: Graph methods port check
+
+# site/js/core.js buildGraph must reproduce the graph methods of Graph-EVT-agent (Python) on a fixed input.
+# The reference is tests/fixtures/graph_methods_reference.json, made by tests/make_graph_reference.py.
+
+on:
+  push:
+    paths: ["site/js/core.js", "site/js/graph_methods.js", "tests/**", ".github/workflows/port-check.yml"]
+  pull_request:
+    paths: ["site/js/core.js", "site/js/graph_methods.js", "tests/**", ".github/workflows/port-check.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  port-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node tests/graph_methods_port_check.mjs
