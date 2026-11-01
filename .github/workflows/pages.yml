@@ -1,5 +1,10 @@
 name: Deploy interactive page
 
+# Which version is published:
+#   push to main        -> main, automatically;
+#   Actions -> this workflow -> "Run workflow" -> field "branch" -> that branch's files.
+# The run itself always starts from main, so the github-pages environment rule
+# "only the default branch may deploy" still holds; only the checked-out files change.
 on:
   push:
     branches: [main]
@@ -8,6 +13,12 @@ on:
       - "demo/evt-educational-demo/src/evt_demo/data_generator.py"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch, tag or commit to publish (main is the default site)"
+        required: true
+        default: main
+        type: string
 
 permissions:
   contents: read
@@ -23,10 +34,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # push: the pushed commit; manual run: the branch typed in "Run workflow"
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.sha }}
+      - name: Record the published version
+        env:
+          BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.ref_name }}
+        run: |
+          echo "Published branch: \`$BRANCH\` @ $(git rev-parse --short HEAD)" >> "$GITHUB_STEP_SUMMARY"
+          printf '{"branch": "%s", "commit": "%s", "built": "%s"}\n' "$BRANCH" "$(git rev-parse HEAD)" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > version.json
       - name: Assemble site with the repository's data generator
         run: |
           mkdir -p _site/py/evt_demo
           cp -r site/. _site/
+          cp version.json _site/
           cp demo/evt-educational-demo/src/evt_demo/data_generator.py _site/py/evt_demo/
           touch _site/.nojekyll
       - uses: actions/configure-pages@v5
