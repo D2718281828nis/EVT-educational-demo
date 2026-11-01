@@ -40,7 +40,7 @@ python -m pip install --no-deps -e demo/evt-educational-demo
 ```
 
 Последняя строка `requirements.txt` устанавливает Graph-EVT-agent напрямую из
-его GitHub-репозитория на актуальном commit `465b231` с API разметки эпизодов,
+его GitHub-репозитория на актуальном commit `4b9b62e` с API разметки эпизодов,
 обучения GNN/GAT (включая temporal-графы для 1-D, `train_1d`) и progress bars
 (`tqdm`). Численное ядро библиотеки детерминировано: ноутбуки
 используют `EVTConfig`, `GraphConfig`, `InputConfig` и `GraphEVTPipeline`. В
