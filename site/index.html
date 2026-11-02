@@ -379,6 +379,10 @@
       <div class="card controls">
         <div class="ctl-head"><h3><span lang="en">Baseline</span><span lang="ru">Фон (baseline)</span></h3></div>
         <div class="ctl" data-k="@evt.oracle" data-type="toggle" data-en="Oracle: end at the true onset" data-ru="Oracle: до истинного начала"></div>
+        <p class="hint"><span lang="en">With the oracle on, the background ends at the known onset: the alarm delay is shown, but an alarm before the event cannot occur by construction. Turn it off to see early alarms.</span>
+          <span lang="ru">С включённым oracle фон кончается на известном начале: видна задержка тревоги, но тревога до события невозможна по построению. Выключите его, чтобы увидеть ранние тревоги.</span>
+          <span data-only="nd"><span lang="en">Default series with B = 600: the first alarm comes at 706, before the onset, and names the wrong source; the event itself is caught at 951. The notebook series gives the same picture (<code>scripts/non_oracle_check.py</code>).</span>
+          <span lang="ru">Ряд по умолчанию при B = 600: первая тревога — на 706-м отсчёте, до начала, и с неверным источником; само событие поймано на 951-м. Ряд ноутбука даёт ту же картину (<code>scripts/non_oracle_check.py</code>).</span></span></p>
         <div class="ctl" data-k="@evt.baseline" data-min="50" data-max="1400" data-step="1" data-en="Baseline size B" data-ru="Размер фона B"></div>
         <div class="ctl-head"><h3>POT / GPD</h3></div>
         <div class="ctl" data-k="@evt.tailQuantile" data-min="0.6" data-max="0.99" data-step="0.01" data-en="Tail quantile q" data-ru="Квантиль хвоста q"></div>
